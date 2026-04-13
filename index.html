@@ -142,7 +142,9 @@
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    const formatEur = n => new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
+    const formatAmount = (n, currency = "EUR") =>
+      new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(n);
+    const formatEur = n => formatAmount(n, "EUR"); // backward compat
     const getCatInfo = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[6];
 
     // ─── Shared UI ───────────────────────────────────────────────────────────
@@ -312,8 +314,9 @@
       const isEdit = !!initialData;
       const [form, setForm] = useState(initialData ? {
         date: initialData.date, amount: String(initialData.amount),
-        category: initialData.category, description: initialData.description, receipt: initialData.receipt
-      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false });
+        category: initialData.category, description: initialData.description, receipt: initialData.receipt,
+        currency: initialData.currency || "EUR", sharedWith: initialData.sharedWith || ""
+      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"" });
       const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || initialData?.receiptPreview || null);
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
@@ -432,10 +435,17 @@
                 </div>
                 <div>
                   <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
-                    IMPORTO (€) {ocring && <span style={{color:"#6366f1"}}>⟳</span>}
+                    IMPORTO {ocring && <span style={{color:"#6366f1"}}>⟳</span>}
                   </label>
-                  <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
+                  <div style={{ display:"flex", gap:6 }}>
+                    <select value={form.currency} onChange={e => setForm({...form, currency:e.target.value})}
+                      style={{ padding:"11px 10px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      <option value="EUR">€ EUR</option>
+                      <option value="USD">$ USD</option>
+                    </select>
+                    <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
+                      style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
+                  </div>
                 </div>
               </div>
 
@@ -457,6 +467,12 @@
                 </label>
                 <input type="text" placeholder="Descrivi la spesa..." value={form.description} onChange={e => setForm({...form, description:e.target.value})}
                   style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
+              </div>
+
+              <div>
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>CON CHI <span style={{color:"#475569", fontWeight:400, textTransform:"none", letterSpacing:0}}>— opzionale</span></label>
+                <input type="text" placeholder="Es. pranzo con Roberto, cliente Bonfiglioli..." value={form.sharedWith} onChange={e => setForm({...form, sharedWith:e.target.value})}
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
               </div>
 
               <div>
@@ -518,9 +534,11 @@
       const [deletingExpense, setDeletingExpense] = useState(null);
       const [viewReceipt, setViewReceipt] = useState(null);
       const myExpenses = expenses.filter(e => e.userId === user.id);
-      const total    = myExpenses.reduce((s,e) => s+e.amount, 0);
-      const approved = myExpenses.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
-      const pending  = myExpenses.filter(e => e.status==="pending").reduce((s,e) => s+e.amount, 0);
+      const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
+      const total    = eurExp.reduce((s,e) => s+e.amount, 0);
+      const approved = eurExp.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
+      const pending  = eurExp.filter(e => e.status==="pending").reduce((s,e) => s+e.amount, 0);
+      const usdTotal = myExpenses.filter(e => e.currency==="USD").reduce((s,e) => s+e.amount, 0);
 
       return (
         <div style={{ minHeight:"100vh", background:"#0f172a", paddingBottom:80 }}>
@@ -546,11 +564,12 @@
             </div>
 
             {/* Stats */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:20 }}>
+            <div style={{ display:"grid", gridTemplateColumns:`repeat(${usdTotal > 0 ? 4 : 3},1fr)`, gap:10, marginBottom:20 }}>
               {[
-                { label:"Totale", value:formatEur(total), color:"#3b82f6" },
+                { label:"Totale €", value:formatEur(total), color:"#3b82f6" },
                 { label:"Approvato", value:formatEur(approved), color:"#10b981" },
                 { label:"In attesa", value:formatEur(pending), color:"#f59e0b" },
+                ...(usdTotal > 0 ? [{ label:"Totale $", value:formatAmount(usdTotal,"USD"), color:"#10b981" }] : []),
               ].map(s => (
                 <div key={s.label} style={{ background:"#1e293b", borderRadius:14, padding:"14px 12px", border:"1px solid #334155" }}>
                   <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:5, letterSpacing:0.5 }}>{s.label.toUpperCase()}</div>
@@ -588,10 +607,11 @@
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
                         <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} {exp.receipt && "· 📎"}</div>
+                        {exp.sharedWith && <div style={{ color:"#94a3b8", fontSize:11, marginTop:2 }}>👥 {exp.sharedWith}</div>}
                         {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
-                        <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:15 }}>{formatEur(exp.amount)}</div>
+                        <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:15 }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
                         <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
                       </div>
                     </div>
@@ -623,7 +643,7 @@
               <div style={{ background:"#1e293b", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
                 <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
                 <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Elimina spesa?</h3>
-                <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatEur(deletingExpense.amount)}</p>
+                <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatAmount(deletingExpense.amount, deletingExpense.currency || "EUR")}</p>
                 <div style={{ display:"flex", gap:10 }}>
                   <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
                   <button onClick={() => { onDeleteExpense(deletingExpense.id); setDeletingExpense(null); }} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Elimina</button>
@@ -654,8 +674,10 @@
       const [viewReceipt, setViewReceipt] = useState(null);
 
       const pending  = expenses.filter(e => e.status==="pending");
-      const totalAll = expenses.reduce((s,e) => s+e.amount, 0);
-      const totalApproved = expenses.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
+      const eurAll   = expenses.filter(e => (e.currency||"EUR")==="EUR");
+      const totalAll = eurAll.reduce((s,e) => s+e.amount, 0);
+      const totalApproved = eurAll.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
+      const usdAll   = expenses.filter(e => e.currency==="USD").reduce((s,e) => s+e.amount, 0);
 
       const byCategory = CATEGORIES.map(cat => ({
         ...cat, total: expenses.filter(e => e.category===cat.id).reduce((s,e) => s+e.amount, 0)
@@ -663,7 +685,8 @@
 
       const byEmployee = USERS.filter(u => u.role==="employee").map(u => ({
         ...u,
-        total: expenses.filter(e => e.userId===u.id).reduce((s,e) => s+e.amount, 0),
+        total: expenses.filter(e => e.userId===u.id && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
+        totalUsd: expenses.filter(e => e.userId===u.id && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
         count: expenses.filter(e => e.userId===u.id).length
       })).sort((a,b) => b.total-a.total);
 
@@ -721,8 +744,9 @@
               <>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
                   {[
-                    { label:"Totale Spese", value:formatEur(totalAll), icon:"💳", color:"#3b82f6" },
-                    { label:"Approvato", value:formatEur(totalApproved), icon:"✅", color:"#10b981" },
+                    { label:"Totale €", value:formatEur(totalAll), icon:"💳", color:"#3b82f6" },
+                    { label:"Approvato €", value:formatEur(totalApproved), icon:"✅", color:"#10b981" },
+                    ...(usdAll > 0 ? [{ label:"Totale $", value:formatAmount(usdAll,"USD"), icon:"💵", color:"#10b981" }] : []),
                     { label:"In Attesa", value:`${pending.length} richieste`, icon:"⏳", color:"#f59e0b" },
                     { label:"Dipendenti", value:`${byEmployee.length} attivi`, icon:"👥", color:"#8b5cf6" },
                   ].map(k => (
@@ -765,7 +789,9 @@
                           <div style={{ color:"#f1f5f9", fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
                           <div style={{ color:"#64748b", fontSize:11 }}>{emp.count} spese</div>
                         </div>
-                        <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13 }}>{formatEur(emp.total)}</div>
+                        <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13 }}>
+                          {formatEur(emp.total)}{emp.totalUsd > 0 && <span style={{color:"#64748b", fontSize:11, marginLeft:4}}>+{formatAmount(emp.totalUsd,"USD")}</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -813,10 +839,11 @@
                             {exp.userName} · {exp.date} · {cat.label}
                             {!exp.receipt && <span style={{ color:"#ef4444" }}> · ⚠️ no scontrino</span>}
                           </div>
+                          {exp.sharedWith && <div style={{ color:"#94a3b8", fontSize:11 }}>👥 {exp.sharedWith}</div>}
                           {exp.note && <div style={{ color:"#94a3b8", fontSize:11 }}>💬 {exp.note}</div>}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14, marginBottom:3 }}>{formatEur(exp.amount)}</div>
+                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14, marginBottom:3 }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
                           <StatusBadge status={exp.status} />
                         </div>
                         {exp.status==="pending" && (
@@ -842,8 +869,9 @@
                 <div style={{ background:"#0f172a", borderRadius:10, padding:14, marginBottom:12 }}>
                   <div style={{ color:"#64748b", fontSize:11, marginBottom:3 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label}</div>
                   <div style={{ color:"#f1f5f9", fontWeight:600, marginBottom:3 }}>{selectedExpense.description}</div>
-                  <div style={{ color:"#f1f5f9", fontSize:20, fontWeight:800 }}>{formatEur(selectedExpense.amount)}</div>
+                  <div style={{ color:"#f1f5f9", fontSize:20, fontWeight:800 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency || "EUR")}</div>
                   <div style={{ color:"#64748b", fontSize:11, marginTop:4 }}>👤 {selectedExpense.userName} {selectedExpense.receipt ? "· 📎 Scontrino allegato" : "· ⚠️ Nessun scontrino"}</div>
+              {selectedExpense.sharedWith && <div style={{ color:"#94a3b8", fontSize:11, marginTop:3 }}>👥 Con: {selectedExpense.sharedWith}</div>}
                 </div>
                 {(selectedExpense.receiptFull || selectedExpense.receiptPreview) && (
                   <div style={{ marginBottom:12, borderRadius:10, overflow:"hidden", border:"1px solid #334155", cursor:"pointer" }} onClick={() => setViewReceipt(selectedExpense.receiptFull || selectedExpense.receiptPreview)}>
