@@ -53,11 +53,11 @@
     // ── CREDENZIALI UTENTI ─────────────────────────────────────────────────
     // Per modificare: cambia email/password qui sotto, poi ricarica su Vercel.
     const USERS = [
-      { id: 1, name: "Roberto Admin",  role: "admin",    email: "admin@mycrypto.it",  password: "Admin2026!" },
-      { id: 2, name: "Marco Ferretti", role: "employee", email: "marco@mycrypto.it",  password: "Marco2026!" },
-      { id: 3, name: "Giulia Morandi", role: "employee", email: "giulia@mycrypto.it", password: "Giulia2026!" },
-      { id: 4, name: "Luca Ricci",     role: "employee", email: "luca@mycrypto.it",   password: "Luca2026!" },
-      { id: 5, name: "Sara Bianchi",   role: "employee", email: "sara@mycrypto.it",   password: "Sara2026!" },
+      { id: 1, name: "Roberto Admin",  role: "admin",    email: "admin@amycryptolimited.com",  password: "Admin2026!" },
+      { id: 2, name: "Andrea Alberici", role: "employee", email: "a.alberici@alberici.net",  password: "Marco2026!" },
+      { id: 3, name: "Giulia Morandi", role: "employee", email: "giulia@alberici.net", password: "Giulia2026!" },
+      { id: 4, name: "Luca Ricci",     role: "employee", email: "luca@alberici.net",   password: "Luca2026!" },
+      { id: 5, name: "Sara Bianchi",   role: "employee", email: "sara@alberici.net",   password: "Sara2026!" },
     ];
 
     const MOCK_EXPENSES = [
@@ -240,7 +240,7 @@
               <label style={{ color:"#64748b", fontSize:11, fontWeight:700, display:"block", marginBottom:6, letterSpacing:0.6 }}>EMAIL</label>
               <input
                 type="email" inputMode="email" autoComplete="email"
-                placeholder="nome@mycrypto.it"
+                placeholder="nome@alberici.net"
                 value={email} onChange={e => { setEmail(e.target.value); setError(""); }}
                 onKeyDown={handleKey}
                 style={{ width:"100%", padding:"13px 14px", borderRadius:11, border: error ? "1.5px solid #ef4444" : "1.5px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:15, outline:"none" }}
