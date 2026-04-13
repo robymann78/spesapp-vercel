@@ -69,7 +69,7 @@
       { id: 5, userId: 3, userName: "Giulia Morandi", date: "2026-03-22", amount: 210.00, category: "client",    description: "Cena rappresentanza cliente Sacmi", status: "pending", receipt: true,  note: "",              receiptPreview: null },
       { id: 6, userId: 4, userName: "Luca Ricci",     date: "2026-03-20", amount: 45.00,  category: "materials", description: "Cartucce stampante ufficio",       status: "approved", receipt: true,  note: "",              receiptPreview: null },
       { id: 7, userId: 2, userName: "Marco Ferretti", date: "2026-03-18", amount: 33.50,  category: "meals",     description: "Pranzo trasferta Modena",          status: "approved", receipt: true,  note: "",              receiptPreview: null },
-      { id: 8, userId: 5, userName: "Sara Bianchi",   date: "2026-03-15", amount: 189.00, category: "travel",    description: "Volo Bologna-Roma",               status: "pending",  receipt: true,  note: "",              receiptPreview: null },
+      { id: 8, userId: 5, userName: "Andrea Alberici",   date: "2026-03-15", amount: 189.00, category: "travel",    description: "Volo Bologna-Roma",               status: "pending",  receipt: true,  note: "",              receiptPreview: null },
     ];
 
     const STATUS_CONFIG = {
@@ -83,7 +83,10 @@
     function loadExpenses() {
       try {
         const raw = localStorage.getItem("spesapp_expenses");
-        return raw ? JSON.parse(raw) : MOCK_EXPENSES;
+        if (!raw) return MOCK_EXPENSES;
+        const parsed = JSON.parse(raw);
+        // Migrazione: aggiorna vecchi nomi utente rinominati
+        return parsed.map(e => e.userName === "Sara Bianchi" ? { ...e, userName: "Andrea Alberici" } : e);
       } catch { return MOCK_EXPENSES; }
     }
 
