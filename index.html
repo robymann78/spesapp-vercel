@@ -50,12 +50,14 @@
       { id: "other",     label: "Altro",           icon: "📋",  color: "#6b7280" },
     ];
 
+    // ── CREDENZIALI UTENTI ─────────────────────────────────────────────────
+    // Per modificare: cambia email/password qui sotto, poi ricarica su Vercel.
     const USERS = [
-      { id: 1, name: "Admin",          role: "admin" },
-      { id: 2, name: "Marco Ferretti", role: "employee" },
-      { id: 3, name: "Giulia Morandi", role: "employee" },
-      { id: 4, name: "Luca Ricci",     role: "employee" },
-      { id: 5, name: "Sara Bianchi",   role: "employee" },
+      { id: 1, name: "Roberto Admin",  role: "admin",    email: "admin@mycrypto.it",  password: "Admin2026!" },
+      { id: 2, name: "Marco Ferretti", role: "employee", email: "marco@mycrypto.it",  password: "Marco2026!" },
+      { id: 3, name: "Giulia Morandi", role: "employee", email: "giulia@mycrypto.it", password: "Giulia2026!" },
+      { id: 4, name: "Luca Ricci",     role: "employee", email: "luca@mycrypto.it",   password: "Luca2026!" },
+      { id: 5, name: "Sara Bianchi",   role: "employee", email: "sara@mycrypto.it",   password: "Sara2026!" },
     ];
 
     const MOCK_EXPENSES = [
@@ -202,7 +204,29 @@
     // ─── Login ────────────────────────────────────────────────────────────────
 
     function LoginScreen({ onLogin }) {
-      const [selected, setSelected] = useState(null);
+      const [email, setEmail] = useState("");
+      const [password, setPassword] = useState("");
+      const [showPwd, setShowPwd] = useState(false);
+      const [error, setError] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      const handleLogin = () => {
+        setError("");
+        if (!email || !password) { setError("Inserisci email e password."); return; }
+        setLoading(true);
+        setTimeout(() => {
+          const user = USERS.find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
+          if (user) {
+            onLogin(user);
+          } else {
+            setError("Email o password non corretti.");
+            setLoading(false);
+          }
+        }, 400);
+      };
+
+      const handleKey = e => { if (e.key === "Enter") handleLogin(); };
+
       return (
         <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px" }}>
           <div style={{ marginBottom:32, textAlign:"center" }}>
@@ -211,25 +235,44 @@
             <p style={{ color:"#64748b", margin:"5px 0 0", fontSize:13 }}>MyCrypto S.r.l. — Gestione Note Spese</p>
           </div>
 
-          <div style={{ background:"#1e293b", borderRadius:20, padding:"24px 20px", width:"100%", maxWidth:380, border:"1px solid #334155", boxShadow:"0 24px 60px rgba(0,0,0,0.5)" }}>
-            <p style={{ color:"#64748b", fontSize:12, marginBottom:14, textAlign:"center", fontWeight:600, letterSpacing:0.5 }}>SELEZIONA UTENTE (DEMO)</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {USERS.map(u => (
-                <button key={u.id} onClick={() => setSelected(u.id)}
-                  style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", border: selected===u.id ? "2px solid #3b82f6" : "2px solid #334155", background: selected===u.id ? "rgba(59,130,246,0.1)" : "#0f172a", transition:"all 0.15s", width:"100%", textAlign:"left" }}>
-                  <Avatar name={u.name} size={38} />
-                  <div>
-                    <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14 }}>{u.name}</div>
-                    <div style={{ color:"#64748b", fontSize:12 }}>{u.role==="admin" ? "👑 Amministratore" : "👤 Dipendente"}</div>
-                  </div>
-                  {selected===u.id && <span style={{ marginLeft:"auto", color:"#3b82f6", fontSize:18 }}>✓</span>}
-                </button>
-              ))}
+          <div style={{ background:"#1e293b", borderRadius:20, padding:"28px 24px", width:"100%", maxWidth:380, border:"1px solid #334155", boxShadow:"0 24px 60px rgba(0,0,0,0.5)" }}>
+            <div style={{ marginBottom:20 }}>
+              <label style={{ color:"#64748b", fontSize:11, fontWeight:700, display:"block", marginBottom:6, letterSpacing:0.6 }}>EMAIL</label>
+              <input
+                type="email" inputMode="email" autoComplete="email"
+                placeholder="nome@mycrypto.it"
+                value={email} onChange={e => { setEmail(e.target.value); setError(""); }}
+                onKeyDown={handleKey}
+                style={{ width:"100%", padding:"13px 14px", borderRadius:11, border: error ? "1.5px solid #ef4444" : "1.5px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:15, outline:"none" }}
+              />
             </div>
-            <button onClick={() => selected && onLogin(USERS.find(u => u.id===selected))}
-              disabled={!selected}
-              style={{ width:"100%", marginTop:16, padding:"14px", borderRadius:12, border:"none", background: selected ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#1e293b", color: selected ? "#fff" : "#475569", fontWeight:700, fontSize:15, cursor: selected ? "pointer" : "default", transition:"all 0.2s", boxShadow: selected ? "0 4px 20px rgba(99,102,241,0.4)" : "none" }}>
-              Accedi
+
+            <div style={{ marginBottom:8 }}>
+              <label style={{ color:"#64748b", fontSize:11, fontWeight:700, display:"block", marginBottom:6, letterSpacing:0.6 }}>PASSWORD</label>
+              <div style={{ position:"relative" }}>
+                <input
+                  type={showPwd ? "text" : "password"} autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
+                  onKeyDown={handleKey}
+                  style={{ width:"100%", padding:"13px 44px 13px 14px", borderRadius:11, border: error ? "1.5px solid #ef4444" : "1.5px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:15, outline:"none" }}
+                />
+                <button onClick={() => setShowPwd(p => !p)}
+                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:16, padding:2 }}>
+                  {showPwd ? "🙈" : "👁️"}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div style={{ color:"#ef4444", fontSize:12, fontWeight:600, marginBottom:12, display:"flex", alignItems:"center", gap:5 }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button onClick={handleLogin} disabled={loading}
+              style={{ width:"100%", marginTop:16, padding:"14px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#3b82f6,#6366f1)", color:"#fff", fontWeight:700, fontSize:15, cursor: loading ? "default" : "pointer", transition:"all 0.2s", boxShadow:"0 4px 20px rgba(99,102,241,0.4)", opacity: loading ? 0.7 : 1 }}>
+              {loading ? "Accesso..." : "Accedi"}
             </button>
           </div>
         </div>
@@ -238,10 +281,14 @@
 
     // ─── New Expense Modal ────────────────────────────────────────────────────
 
-    function NewExpenseModal({ onClose, onSave, currentUserId, currentUserName }) {
-      const [form, setForm] = useState({ date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false });
-      const [receiptPreview, setReceiptPreview] = useState(null);
-      const [receiptName, setReceiptName] = useState("");
+    function NewExpenseModal({ onClose, onSave, currentUserId, currentUserName, initialData }) {
+      const isEdit = !!initialData;
+      const [form, setForm] = useState(initialData ? {
+        date: initialData.date, amount: String(initialData.amount),
+        category: initialData.category, description: initialData.description, receipt: initialData.receipt
+      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false });
+      const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || initialData?.receiptPreview || null);
+      const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
       const cameraRef = useRef();
       const galleryRef = useRef();
@@ -263,7 +310,11 @@
         if (!form.amount || !form.description) return;
         setSaving(true);
         setTimeout(() => {
-          onSave({ id:Date.now(), userId:currentUserId, userName:currentUserName, ...form, amount:parseFloat(form.amount), status:"pending", note:"", receiptPreview, receiptFull:receiptPreview });
+          if (isEdit) {
+            onSave({ ...initialData, ...form, amount:parseFloat(form.amount), receiptPreview, receiptFull:receiptPreview });
+          } else {
+            onSave({ id:Date.now(), userId:currentUserId, userName:currentUserName, ...form, amount:parseFloat(form.amount), status:"pending", note:"", receiptPreview, receiptFull:receiptPreview });
+          }
           onClose();
         }, 300);
       };
@@ -275,7 +326,7 @@
           <div style={{ background:"#1e293b", borderRadius:"22px 22px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #334155", boxShadow:"0 -24px 60px rgba(0,0,0,0.6)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
             <div style={{ width:36, height:4, borderRadius:2, background:"#334155", margin:"0 auto 18px" }} />
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-              <h2 style={{ color:"#f1f5f9", fontSize:17, fontWeight:800, margin:0 }}>Nuova Spesa</h2>
+              <h2 style={{ color:"#f1f5f9", fontSize:17, fontWeight:800, margin:0 }}>{isEdit ? "Modifica Spesa" : "Nuova Spesa"}</h2>
               <button onClick={onClose} style={{ background:"#0f172a", border:"1px solid #334155", color:"#94a3b8", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:13 }}>✕</button>
             </div>
 
@@ -346,7 +397,7 @@
               <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
               <button onClick={handleSave} disabled={!valid || saving}
                 style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#334155", color: valid ? "#fff" : "#64748b", fontWeight:700, fontSize:15, cursor: valid ? "pointer" : "default", boxShadow: valid ? "0 4px 16px rgba(99,102,241,0.4)" : "none", transition:"all 0.2s" }}>
-                {saving ? "Invio..." : "Invia Spesa"}
+                {saving ? (isEdit ? "Salvo..." : "Invio...") : (isEdit ? "Salva Modifiche" : "Invia Spesa")}
               </button>
             </div>
           </div>
@@ -356,8 +407,10 @@
 
     // ─── Employee View ────────────────────────────────────────────────────────
 
-    function EmployeeView({ user, expenses, onAddExpense, onLogout }) {
+    function EmployeeView({ user, expenses, onAddExpense, onEditExpense, onDeleteExpense, onLogout }) {
       const [showModal, setShowModal] = useState(false);
+      const [editingExpense, setEditingExpense] = useState(null);
+      const [deletingExpense, setDeletingExpense] = useState(null);
       const [viewReceipt, setViewReceipt] = useState(null);
       const myExpenses = expenses.filter(e => e.userId === user.id);
       const total    = myExpenses.reduce((s,e) => s+e.amount, 0);
@@ -417,23 +470,39 @@
               )}
               {myExpenses.map(exp => {
                 const cat = getCatInfo(exp.category);
+                const canEdit = exp.status === "pending";
                 return (
-                  <div key={exp.id} style={{ background:"#1e293b", borderRadius:14, padding:"14px 16px", border:"1px solid #334155", display:"flex", alignItems:"center", gap:12 }}>
-                    {exp.receiptFull || exp.receiptPreview ? (
-                      <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
-                        style={{ width:46, height:46, borderRadius:10, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
-                    ) : (
-                      <div style={{ width:46, height:46, borderRadius:10, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
+                  <div key={exp.id} style={{ background:"#1e293b", borderRadius:14, border: canEdit ? "1px solid #334155" : "1px solid #1e293b", overflow:"hidden" }}>
+                    <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                      {exp.receiptFull || exp.receiptPreview ? (
+                        <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
+                          style={{ width:46, height:46, borderRadius:10, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
+                      ) : (
+                        <div style={{ width:46, height:46, borderRadius:10, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
+                      )}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
+                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} {exp.receipt && "· 📎"}</div>
+                        {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:15 }}>{formatEur(exp.amount)}</div>
+                        <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <div style={{ display:"flex", borderTop:"1px solid #0f172a" }}>
+                        <button onClick={() => setEditingExpense(exp)}
+                          style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#3b82f6", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          ✏️ Modifica
+                        </button>
+                        <div style={{ width:1, background:"#0f172a" }} />
+                        <button onClick={() => setDeletingExpense(exp)}
+                          style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          🗑️ Elimina
+                        </button>
+                      </div>
                     )}
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
-                      <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} {exp.receipt && "· 📎"}</div>
-                      {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
-                    </div>
-                    <div style={{ textAlign:"right", flexShrink:0 }}>
-                      <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:15 }}>{formatEur(exp.amount)}</div>
-                      <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
-                    </div>
                   </div>
                 );
               })}
@@ -441,6 +510,22 @@
           </div>
 
           {showModal && <NewExpenseModal onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} />}
+          {editingExpense && <NewExpenseModal onClose={() => setEditingExpense(null)} onSave={exp => { onEditExpense(exp); setEditingExpense(null); }} currentUserId={user.id} currentUserName={user.name} initialData={editingExpense} />}
+
+          {/* Delete confirm */}
+          {deletingExpense && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
+              <div style={{ background:"#1e293b", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
+                <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
+                <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Elimina spesa?</h3>
+                <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatEur(deletingExpense.amount)}</p>
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                  <button onClick={() => { onDeleteExpense(deletingExpense.id); setDeletingExpense(null); }} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Elimina</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Receipt lightbox */}
           {viewReceipt && (
@@ -719,9 +804,25 @@
         });
       }, []);
 
+      const handleEditExpense = useCallback(exp => {
+        setExpenses(prev => {
+          const next = prev.map(e => e.id===exp.id ? exp : e);
+          saveExpenses(next);
+          return next;
+        });
+      }, []);
+
+      const handleDeleteExpense = useCallback(id => {
+        setExpenses(prev => {
+          const next = prev.filter(e => e.id !== id);
+          saveExpenses(next);
+          return next;
+        });
+      }, []);
+
       if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
       if (currentUser.role==="admin") return <AdminView user={currentUser} expenses={expenses} onUpdateStatus={handleUpdateStatus} onLogout={handleLogout} />;
-      return <EmployeeView user={currentUser} expenses={expenses} onAddExpense={handleAddExpense} onLogout={handleLogout} />;
+      return <EmployeeView user={currentUser} expenses={expenses} onAddExpense={handleAddExpense} onEditExpense={handleEditExpense} onDeleteExpense={handleDeleteExpense} onLogout={handleLogout} />;
     }
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
