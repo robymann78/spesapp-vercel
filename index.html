@@ -79,6 +79,24 @@
     };
 
     // ─── Persistence ─────────────────────────────────────────────────────────
+    // Strategia: localStorage salva solo metadati (senza immagini).
+    // Le immagini vengono salvate separatamente in localStorage con chiave per ID,
+    // compresse. In questo modo approvare/rifiutare non cancella mai lo scontrino.
+
+    const IMG_PREFIX = "spesapp_img_";
+
+    function saveImage(id, dataUrl) {
+      if (!dataUrl) return;
+      try { localStorage.setItem(IMG_PREFIX + id, dataUrl); } catch {}
+    }
+
+    function loadImage(id) {
+      try { return localStorage.getItem(IMG_PREFIX + id) || null; } catch { return null; }
+    }
+
+    function deleteImage(id) {
+      try { localStorage.removeItem(IMG_PREFIX + id); } catch {}
+    }
 
     function loadExpenses() {
       try {
@@ -86,23 +104,26 @@
         if (!raw) return MOCK_EXPENSES;
         const parsed = JSON.parse(raw);
         // Migrazione: aggiorna vecchi nomi utente rinominati
-        return parsed.map(e => e.userName === "Sara Bianchi" ? { ...e, userName: "Andrea Alberici" } : e);
+        return parsed.map(e => {
+          if (e.userName === "Sara Bianchi") e = { ...e, userName: "Andrea Alberici" };
+          // Ricarica immagine separata se disponibile
+          const img = loadImage(e.id);
+          return img ? { ...e, receiptFull: img, receiptPreview: img } : e;
+        });
       } catch { return MOCK_EXPENSES; }
     }
 
     function saveExpenses(expenses) {
       try {
-        // Avoid storing large base64 images — store only metadata + small thumb
-        const toStore = expenses.map(e => ({
-          ...e,
-          receiptPreview: e.receiptPreview
-            ? e.receiptPreview.substring(0, 500) + "..." // truncate for storage
-            : null,
-          receiptFull: e.receiptFull || e.receiptPreview || null
-        }));
+        // Salva immagini separatamente, metadati senza immagini inline
+        const toStore = expenses.map(e => {
+          if (e.receiptFull || e.receiptPreview) {
+            saveImage(e.id, e.receiptFull || e.receiptPreview);
+          }
+          return { ...e, receiptPreview: null, receiptFull: null };
+        });
         localStorage.setItem("spesapp_expenses", JSON.stringify(toStore));
       } catch(err) {
-        // localStorage full (likely due to images) — store without previews
         try {
           const minimal = expenses.map(e => ({ ...e, receiptPreview: null, receiptFull: null }));
           localStorage.setItem("spesapp_expenses", JSON.stringify(minimal));
@@ -895,6 +916,7 @@
       }, []);
 
       const handleDeleteExpense = useCallback(id => {
+        deleteImage(id);
         setExpenses(prev => {
           const next = prev.filter(e => e.id !== id);
           saveExpenses(next);
