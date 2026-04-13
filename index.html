@@ -344,15 +344,33 @@
         }
       };
 
-      const handleFile = e => {
+      const compressImage = (dataUrl, maxPx = 1200, quality = 0.75) => new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = dataUrl;
+      });
+
+      const handleFile = async e => {
         const file = e.target.files[0];
         if (!file) return;
         setReceiptName(file.name);
         setForm(f => ({ ...f, receipt:true }));
         const reader = new FileReader();
-        reader.onload = ev => {
-          setReceiptPreview(ev.target.result);
-          if (file.type.startsWith("image/")) runOCR(ev.target.result);
+        reader.onload = async ev => {
+          const original = ev.target.result;
+          setReceiptPreview(original);
+          if (file.type.startsWith("image/")) {
+            const compressed = await compressImage(original);
+            runOCR(compressed);
+          }
         };
         reader.readAsDataURL(file);
         e.target.value = "";
