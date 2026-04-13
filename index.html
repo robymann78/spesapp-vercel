@@ -26,6 +26,7 @@
     input, button { font-family: inherit; }
     /* Safe area for notched phones */
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -50,11 +51,15 @@
       { id: "other",     label: "Altro",           icon: "📋",  color: "#6b7280" },
     ];
 
+    // ── API KEY ANTHROPIC (OCR scontrini) ────────────────────────────────
+    // Ottieni la tua key su: https://console.anthropic.com → API Keys
+    const ANTHROPIC_API_KEY = "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";
+
     // ── CREDENZIALI UTENTI ─────────────────────────────────────────────────
     // Per modificare: cambia email/password qui sotto, poi ricarica su Vercel.
     const USERS = [
-      { id: 1, name: "Roberto Admin",  role: "admin",    email: "admin@amycryptolimited.com",  password: "Admin2026!" },
-      { id: 2, name: "Andrea Alberici", role: "employee", email: "a.alberici@alberici.net",  password: "Andrea2026!" },
+      { id: 1, name: "Roberto Admin",  role: "admin",    email: "admin@alberici.net",  password: "Admin2026!" },
+      { id: 2, name: "Marco Ferretti", role: "employee", email: "marco@alberici.net",  password: "Marco2026!" },
       { id: 3, name: "Giulia Morandi", role: "employee", email: "giulia@alberici.net", password: "Giulia2026!" },
       { id: 4, name: "Luca Ricci",     role: "employee", email: "luca@alberici.net",   password: "Luca2026!" },
       { id: 5, name: "Sara Bianchi",   role: "employee", email: "sara@alberici.net",   password: "Sara2026!" },
@@ -290,8 +295,77 @@
       const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || initialData?.receiptPreview || null);
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
+      const [ocring, setOcring] = useState(false);
+      const [ocrError, setOcrError] = useState("");
       const cameraRef = useRef();
       const galleryRef = useRef();
+
+      const CATEGORY_MAP = {
+        "treno": "travel", "volo": "travel", "aereo": "travel", "taxi": "travel", "bus": "travel", "traghetto": "travel",
+        "hotel": "hotel", "albergo": "hotel", "b&b": "hotel", "ostello": "hotel",
+        "ristorante": "meals", "bar": "meals", "pranzo": "meals", "cena": "meals", "colazione": "meals", "caffè": "meals", "caffetteria": "meals", "pizzeria": "meals",
+        "benzina": "fuel", "gasolio": "fuel", "carburante": "fuel", "eni": "fuel", "agip": "fuel", "q8": "fuel",
+        "cliente": "client", "rappresentanza": "client",
+        "cancelleria": "materials", "materiale": "materials", "ufficio": "materials",
+      };
+
+      const guessCategory = (desc) => {
+        if (!desc) return null;
+        const lower = desc.toLowerCase();
+        for (const [kw, cat] of Object.entries(CATEGORY_MAP)) {
+          if (lower.includes(kw)) return cat;
+        }
+        return null;
+      };
+
+      const runOCR = async (base64Image) => {
+        setOcring(true);
+        setOcrError("");
+        try {
+          const mediaType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
+          const base64Data = base64Image.split(",")[1];
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": ANTHROPIC_API_KEY,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true"
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 300,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+                  { type: "text", text: `Analizza questo scontrino/ricevuta italiana ed estrai i dati. Rispondi SOLO con JSON valido, nessun testo extra:
+{"importo": <numero decimale totale pagato, senza simbolo €>, "data": "<YYYY-MM-DD o null se non leggibile>", "descrizione": "<nome esercizio o tipo di spesa, max 60 caratteri>"}
+Se non riesci a leggere un campo, metti null. Importo DEVE essere un numero.` }
+                ]
+              }]
+            })
+          });
+          if (!resp.ok) throw new Error(`API error ${resp.status}`);
+          const data = await resp.json();
+          const text = data.content?.find(b => b.type === "text")?.text || "";
+          const clean = text.replace(/```json|```/g, "").trim();
+          const parsed = JSON.parse(clean);
+
+          setForm(f => ({
+            ...f,
+            amount: parsed.importo != null ? String(parsed.importo) : f.amount,
+            date: parsed.data || f.date,
+            description: parsed.descrizione || f.descrizione || "",
+            category: guessCategory(parsed.descrizione) || f.category,
+          }));
+        } catch(e) {
+          console.error("OCR error:", e);
+          setOcrError("Non riesco a leggere lo scontrino. Compila manualmente.");
+        } finally {
+          setOcring(false);
+        }
+      };
 
       const handleFile = e => {
         const file = e.target.files[0];
@@ -299,12 +373,15 @@
         setReceiptName(file.name);
         setForm(f => ({ ...f, receipt:true }));
         const reader = new FileReader();
-        reader.onload = ev => setReceiptPreview(ev.target.result);
+        reader.onload = ev => {
+          setReceiptPreview(ev.target.result);
+          if (file.type.startsWith("image/")) runOCR(ev.target.result);
+        };
         reader.readAsDataURL(file);
         e.target.value = "";
       };
 
-      const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setForm(f => ({ ...f, receipt:false })); };
+      const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setOcrError(""); setForm(f => ({ ...f, receipt:false })); };
 
       const handleSave = () => {
         if (!form.amount || !form.description) return;
@@ -331,6 +408,19 @@
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* OCR status banner */}
+              {ocring && (
+                <div style={{ background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:16, height:16, border:"2px solid #6366f1", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", flexShrink:0 }} />
+                  <div style={{ color:"#a5b4fc", fontSize:13, fontWeight:600 }}>Lettura scontrino in corso...</div>
+                </div>
+              )}
+              {ocrError && (
+                <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"10px 14px" }}>
+                  <div style={{ color:"#f59e0b", fontSize:12, fontWeight:600 }}>⚠️ {ocrError}</div>
+                </div>
+              )}
+
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div>
                   <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DATA</label>
@@ -338,9 +428,11 @@
                     style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
                 </div>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>IMPORTO (€)</label>
+                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
+                    IMPORTO (€) {ocring && <span style={{color:"#6366f1"}}>⟳</span>}
+                  </label>
                   <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
                 </div>
               </div>
 
@@ -357,9 +449,11 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DESCRIZIONE</label>
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
+                  DESCRIZIONE {ocring && <span style={{color:"#6366f1"}}>⟳</span>}
+                </label>
                 <input type="text" placeholder="Descrivi la spesa..." value={form.description} onChange={e => setForm({...form, description:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
               </div>
 
               <div>
@@ -379,10 +473,18 @@
                     </button>
                   </div>
                 ) : (
-                  <div style={{ borderRadius:14, overflow:"hidden", border:"2px solid #10b981", position:"relative" }}>
+                  <div style={{ borderRadius:14, overflow:"hidden", border:`2px solid ${ocring ? "#6366f1" : "#10b981"}`, position:"relative", transition:"border 0.3s" }}>
                     <img src={receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
-                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)", display:"flex", alignItems:"flex-end", padding:10, justifyContent:"space-between" }}>
-                      <div style={{ color:"#fff", fontSize:11, fontWeight:600 }}>✅ {receiptName || "Allegato"}</div>
+                    {ocring && (
+                      <div style={{ position:"absolute", inset:0, background:"rgba(99,102,241,0.3)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
+                        <div style={{ color:"#fff", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{ width:18, height:18, border:"3px solid #fff", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+                          Analisi AI in corso...
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)", display:"flex", alignItems:"flex-end", padding:10, justifyContent:"space-between", pointerEvents: ocring ? "none" : "auto" }}>
+                      <div style={{ color:"#fff", fontSize:11, fontWeight:600 }}>{ocring ? "🤖 Lettura in corso..." : `✅ ${receiptName || "Allegato"}`}</div>
                       <div style={{ display:"flex", gap:6 }}>
                         <button onClick={() => cameraRef.current.click()} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(255,255,255,0.2)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer", backdropFilter:"blur(4px)" }}>📷 Rifai</button>
                         <button onClick={clearReceipt} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(239,68,68,0.7)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer" }}>Rimuovi</button>
@@ -395,9 +497,9 @@
 
             <div style={{ display:"flex", gap:10, marginTop:20, marginBottom:4 }}>
               <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
-              <button onClick={handleSave} disabled={!valid || saving}
-                style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#334155", color: valid ? "#fff" : "#64748b", fontWeight:700, fontSize:15, cursor: valid ? "pointer" : "default", boxShadow: valid ? "0 4px 16px rgba(99,102,241,0.4)" : "none", transition:"all 0.2s" }}>
-                {saving ? (isEdit ? "Salvo..." : "Invio...") : (isEdit ? "Salva Modifiche" : "Invia Spesa")}
+              <button onClick={handleSave} disabled={!valid || saving || ocring}
+                style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid && !ocring ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#334155", color: valid && !ocring ? "#fff" : "#64748b", fontWeight:700, fontSize:15, cursor: valid && !ocring ? "pointer" : "default", boxShadow: valid && !ocring ? "0 4px 16px rgba(99,102,241,0.4)" : "none", transition:"all 0.2s" }}>
+                {ocring ? "⟳ Lettura..." : saving ? (isEdit ? "Salvo..." : "Invio...") : (isEdit ? "Salva Modifiche" : "Invia Spesa")}
               </button>
             </div>
           </div>
