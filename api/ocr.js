@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS headers — allow only our own frontend
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -33,9 +32,25 @@ export default async function handler(req, res) {
             },
             {
               type: "text",
-              text: `Analizza questo scontrino/ricevuta italiana ed estrai i dati. Rispondi SOLO con JSON valido, nessun testo extra:
-{"importo": <numero decimale totale pagato, senza simbolo €>, "data": "<YYYY-MM-DD o null se non leggibile>", "descrizione": "<nome esercizio o tipo di spesa, max 60 caratteri>"}
-Se non riesci a leggere un campo metti null. Importo DEVE essere un numero.`
+              text: `Analizza questo scontrino/ricevuta italiana ed estrai i dati.
+Rispondi SOLO con JSON valido, nessun testo extra:
+{
+  "importo": <numero decimale totale pagato, senza simbolo €>,
+  "data": "<YYYY-MM-DD, o null se non leggibile>",
+  "descrizione": "<nome esercizio o tipo spesa, max 60 caratteri>",
+  "categoria": "<una tra: travel, meals, hotel, fuel, client, materials, other>"
+}
+
+Regole per la categoria:
+- travel: treni, aerei, taxi, autobus, traghetti, noleggio auto, pedaggi, parcheggi
+- meals: ristoranti, bar, caffè, pizzerie, trattorie, qualsiasi consumazione cibo/bevande
+- hotel: hotel, alberghi, B&B, affittacamere, Airbnb
+- fuel: benzina, gasolio, GPL, stazioni di servizio (Eni, Q8, IP, Agip, Shell, ecc.)
+- client: cene/pranzi di rappresentanza con clienti, omaggi, intrattenimento clienti
+- materials: cancelleria, materiale ufficio, hardware, forniture aziendali
+- other: tutto ciò che non rientra nelle categorie precedenti
+
+Se non riesci a leggere un campo numerico metti null. importo DEVE essere un numero.`
             }
           ]
         }]
