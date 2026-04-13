@@ -296,24 +296,6 @@
       const cameraRef = useRef();
       const galleryRef = useRef();
 
-      const CATEGORY_MAP = {
-        "treno": "travel", "volo": "travel", "aereo": "travel", "taxi": "travel", "bus": "travel", "traghetto": "travel",
-        "hotel": "hotel", "albergo": "hotel", "b&b": "hotel", "ostello": "hotel",
-        "ristorante": "meals", "bar": "meals", "pranzo": "meals", "cena": "meals", "colazione": "meals", "caffè": "meals", "caffetteria": "meals", "pizzeria": "meals",
-        "benzina": "fuel", "gasolio": "fuel", "carburante": "fuel", "eni": "fuel", "agip": "fuel", "q8": "fuel",
-        "cliente": "client", "rappresentanza": "client",
-        "cancelleria": "materials", "materiale": "materials", "ufficio": "materials",
-      };
-
-      const guessCategory = (desc) => {
-        if (!desc) return null;
-        const lower = desc.toLowerCase();
-        for (const [kw, cat] of Object.entries(CATEGORY_MAP)) {
-          if (lower.includes(kw)) return cat;
-        }
-        return null;
-      };
-
       const runOCR = async (base64Image) => {
         setOcring(true);
         setOcrError("");
@@ -333,8 +315,8 @@
             ...f,
             amount: parsed.importo != null ? String(parsed.importo) : f.amount,
             date: parsed.data || f.date,
-            description: parsed.descrizione || parsed.description || f.description || "",
-            category: guessCategory(parsed.descrizione || parsed.description) || f.category,
+            description: parsed.descrizione || f.description || "",
+            category: parsed.categoria || f.category,
           }));
         } catch(e) {
           console.error("OCR error:", e);
