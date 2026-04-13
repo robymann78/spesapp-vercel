@@ -1,12 +1,14 @@
 {
   "name": "SpesApp — Note Spese",
   "short_name": "SpesApp",
-  "description": "Gestione Note Spese MyCrypto S.r.l.",
+  "description": "Gestione Note Spese Alberici",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192.png",
@@ -22,5 +24,5 @@
     }
   ],
   "categories": ["business", "productivity"],
-  "lang": "it"
+  "lang": "it-IT"
 }
