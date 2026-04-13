@@ -51,10 +51,6 @@
       { id: "other",     label: "Altro",           icon: "📋",  color: "#6b7280" },
     ];
 
-    // ── API KEY ANTHROPIC (OCR scontrini) ────────────────────────────────
-    // Ottieni la tua key su: https://console.anthropic.com → API Keys
-    const ANTHROPIC_API_KEY = "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";
-
     // ── CREDENZIALI UTENTI ─────────────────────────────────────────────────
     // Per modificare: cambia email/password qui sotto, poi ricarica su Vercel.
     const USERS = [
@@ -324,40 +320,21 @@
         try {
           const mediaType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
           const base64Data = base64Image.split(",")[1];
-          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          const resp = await fetch("/api/ocr", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": ANTHROPIC_API_KEY,
-              "anthropic-version": "2023-06-01",
-              "anthropic-dangerous-direct-browser-access": "true"
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 300,
-              messages: [{
-                role: "user",
-                content: [
-                  { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
-                  { type: "text", text: `Analizza questo scontrino/ricevuta italiana ed estrai i dati. Rispondi SOLO con JSON valido, nessun testo extra:
-{"importo": <numero decimale totale pagato, senza simbolo €>, "data": "<YYYY-MM-DD o null se non leggibile>", "descrizione": "<nome esercizio o tipo di spesa, max 60 caratteri>"}
-Se non riesci a leggere un campo, metti null. Importo DEVE essere un numero.` }
-                ]
-              }]
-            })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: base64Data, mediaType })
           });
-          if (!resp.ok) throw new Error(`API error ${resp.status}`);
-          const data = await resp.json();
-          const text = data.content?.find(b => b.type === "text")?.text || "";
-          const clean = text.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(clean);
+          if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+          const parsed = await resp.json();
+          if (parsed.error) throw new Error(parsed.error);
 
           setForm(f => ({
             ...f,
             amount: parsed.importo != null ? String(parsed.importo) : f.amount,
             date: parsed.data || f.date,
-            description: parsed.descrizione || f.descrizione || "",
-            category: guessCategory(parsed.descrizione) || f.category,
+            description: parsed.descrizione || parsed.description || f.description || "",
+            category: guessCategory(parsed.descrizione || parsed.description) || f.category,
           }));
         } catch(e) {
           console.error("OCR error:", e);
