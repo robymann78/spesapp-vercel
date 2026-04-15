@@ -100,10 +100,6 @@
       { id: 5, name: "Andrea Alberici", role: "employee", email: "a.alberici@alberici.net", password: "Andrea2026!" },
     ];
 
-    // ── SUPABASE CONFIG ───────────────────────────────────────────────────
-    const SUPABASE_URL = "https://ljtwipkannwwfnvhqbxd.supabase.co";
-    // Le operazioni DB passano tutte per /api/db (la key rimane sul server)
-
     const MOCK_EXPENSES = [
       { id: 1, userId: 2, userName: "Marco Ferretti", date: "2026-03-28", amount: 142.50, category: "travel",    description: "Treno Bologna-Milano A/R",        status: "pending",  receipt: true,  note: "",              receiptPreview: null },
       { id: 2, userId: 3, userName: "Giulia Morandi", date: "2026-03-27", amount: 87.00,  category: "meals",     description: "Pranzo con cliente Bonfiglioli",  status: "approved", receipt: true,  note: "Approvato",     receiptPreview: null },
@@ -129,33 +125,48 @@
     function loadImageLocal(id) { try { return localStorage.getItem(IMG_PREFIX + id) || null; } catch { return null; } }
     function deleteImageLocal(id) { try { localStorage.removeItem(IMG_PREFIX + id); } catch {} }
 
+    // Upload diretto a Supabase Storage dal browser (bypassa il limite 4.5MB di Vercel)
+    const SUPABASE_URL = "https://ljtwipkannwwfnvhqbxd.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdHdpcGthbm53d2ZudmhxYnhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMzc2MzUsImV4cCI6MjA5MTgxMzYzNX0.J-Y9D1pdd_ipMe8-X0IKCXY1y-zmI5GYEyBMLVVUi5o";
+
     async function uploadImageToCloud(expenseId, base64Image) {
       try {
         const mediaType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
         const base64Data = base64Image.split(",")[1];
-        const res = await fetch("/api/upload", {
+        const ext = mediaType.includes("png") ? "png" : "jpg";
+        const path = `${expenseId}.${ext}`;
+
+        // Converti base64 in Blob
+        const binary = atob(base64Data);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mediaType });
+
+        // Upload diretto a Supabase Storage
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/receipts/${path}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64Data, mediaType, expenseId: String(expenseId) })
+          headers: {
+            "apikey": SUPABASE_ANON,
+            "Authorization": `Bearer ${SUPABASE_ANON}`,
+            "Content-Type": mediaType,
+            "x-upsert": "true",
+          },
+          body: blob,
         });
-        if (!res.ok) return null;
-        const { url } = await res.json();
-        return url || null;
-      } catch { return null; }
+
+        if (!res.ok) { console.error("Upload failed:", await res.text()); return null; }
+        return `${SUPABASE_URL}/storage/v1/object/public/receipts/${path}`;
+      } catch(e) { console.error("Upload error:", e); return null; }
     }
 
     async function deleteImageFromCloud(expenseId) {
       try {
-        await fetch("/api/upload", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: String(expenseId) + ".jpg" })
-        });
-        await fetch("/api/upload", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: String(expenseId) + ".png" })
-        });
+        for (const ext of ["jpg", "png"]) {
+          await fetch(`${SUPABASE_URL}/storage/v1/object/receipts/${expenseId}.${ext}`, {
+            method: "DELETE",
+            headers: { "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` },
+          });
+        }
       } catch {}
     }
 
