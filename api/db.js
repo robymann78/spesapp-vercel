@@ -47,6 +47,7 @@ function fromDb(row) {
     status: row.status,
     note: row.note || "",
     receipt: row.receipt || false,
+    receiptUrl: row.receipt_url || null,
     receiptPreview: null,
     receiptFull: null,
   };
@@ -82,6 +83,11 @@ export default async function handler(req, res) {
       }
       case "updateStatus": {
         const rows = await supabase("PATCH", `expenses?id=eq.${id}`, { status, note });
+        return res.status(200).json(fromDb(rows[0]));
+      }
+      case "updateReceiptUrl": {
+        const { url } = req.body;
+        const rows = await supabase("PATCH", `expenses?id=eq.${id}`, { receipt_url: url, receipt: true });
         return res.status(200).json(fromDb(rows[0]));
       }
       case "delete": {
