@@ -596,6 +596,7 @@
       const [showModal, setShowModal] = useState(false);
       const [editingExpense, setEditingExpense] = useState(null);
       const [deletingExpense, setDeletingExpense] = useState(null);
+      const [viewingExpense, setViewingExpense] = useState(null);
       const [viewReceipt, setViewReceipt] = useState(null);
       const myExpenses = expenses.filter(e => e.userId === user.id);
       const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
@@ -692,7 +693,7 @@
                         <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
                       </div>
                     </div>
-                    {canEdit && (
+                    {canEdit ? (
                       <div style={{ display:"flex", borderTop:"1px solid #0a0a0a" }}>
                         <button onClick={() => setEditingExpense(exp)}
                           style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#f5c400", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
@@ -702,6 +703,13 @@
                         <button onClick={() => setDeletingExpense(exp)}
                           style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                           🗑️ Elimina
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ borderTop:"1px solid #0a0a0a" }}>
+                        <button onClick={() => setViewingExpense(exp)}
+                          style={{ width:"100%", padding:"9px", background:"none", border:"none", color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          👁️ Visualizza dettagli
                         </button>
                       </div>
                     )}
@@ -736,6 +744,76 @@
               <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
             </div>
           )}
+
+          {/* Read-only detail modal */}
+          {viewingExpense && (() => {
+            const exp = viewingExpense;
+            const cat = getCatInfo(exp.category);
+            const imgSrc = exp.receiptFull || exp.receiptPreview;
+            return (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:150 }}
+                onClick={e => e.target===e.currentTarget && setViewingExpense(null)}>
+                <div style={{ background:"#111", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #1a1a1a", borderTop:`3px solid ${exp.status==="approved" ? "#22c55e" : "#ef4444"}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
+                  <div style={{ width:36, height:4, borderRadius:2, background:"#2a2a2a", margin:"0 auto 16px" }} />
+
+                  {/* Header */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                    <div>
+                      <div style={{ color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>
+                        {exp.status==="approved" ? "✓ Approvata" : "✕ Rifiutata"}
+                      </div>
+                      <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>{exp.description}</div>
+                    </div>
+                    <button onClick={() => setViewingExpense(null)} style={{ background:"#1a1a1a", border:"1px solid #272727", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:12, flexShrink:0 }}>✕</button>
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{ background:"#000", borderRadius:8, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ color:"#555", fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Importo</div>
+                    <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#f5c400", fontSize:26, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                  </div>
+
+                  {/* Details grid */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+                    {[
+                      { label:"Data", value:exp.date },
+                      { label:"Categoria", value:`${cat.icon} ${cat.label}` },
+                      ...(exp.sharedWith ? [{ label:"Con chi", value:exp.sharedWith }] : []),
+                      { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
+                    ].map(d => (
+                      <div key={d.label} style={{ background:"#000", borderRadius:6, padding:"10px 12px" }}>
+                        <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
+                        <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{d.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Admin note */}
+                  {exp.note && (
+                    <div style={{ background: exp.status==="approved" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border:`1px solid ${exp.status==="approved" ? "#22c55e30" : "#ef444430"}`, borderRadius:8, padding:"12px 14px", marginBottom:14 }}>
+                      <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
+                      <div style={{ color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontSize:13, fontWeight:600 }}>💬 {exp.note}</div>
+                    </div>
+                  )}
+
+                  {/* Receipt image */}
+                  {imgSrc && (
+                    <div style={{ borderRadius:8, overflow:"hidden", border:"1px solid #1a1a1a", marginBottom:14, cursor:"pointer" }}
+                      onClick={() => setViewReceipt(imgSrc)}>
+                      <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
+                      <div style={{ background:"#000", padding:"7px 12px", color:"#555", fontSize:11 }}>📷 Tocca per ingrandire</div>
+                    </div>
+                  )}
+
+                  <button onClick={() => setViewingExpense(null)}
+                    style={{ width:"100%", padding:13, borderRadius:8, border:"1px solid #272727", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                    Chiudi
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           <InstallBanner />
         </div>
       );
@@ -1042,6 +1120,76 @@
               <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
             </div>
           )}
+
+          {/* Read-only detail modal */}
+          {viewingExpense && (() => {
+            const exp = viewingExpense;
+            const cat = getCatInfo(exp.category);
+            const imgSrc = exp.receiptFull || exp.receiptPreview;
+            return (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:150 }}
+                onClick={e => e.target===e.currentTarget && setViewingExpense(null)}>
+                <div style={{ background:"#111", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #1a1a1a", borderTop:`3px solid ${exp.status==="approved" ? "#22c55e" : "#ef4444"}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
+                  <div style={{ width:36, height:4, borderRadius:2, background:"#2a2a2a", margin:"0 auto 16px" }} />
+
+                  {/* Header */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                    <div>
+                      <div style={{ color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>
+                        {exp.status==="approved" ? "✓ Approvata" : "✕ Rifiutata"}
+                      </div>
+                      <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>{exp.description}</div>
+                    </div>
+                    <button onClick={() => setViewingExpense(null)} style={{ background:"#1a1a1a", border:"1px solid #272727", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:12, flexShrink:0 }}>✕</button>
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{ background:"#000", borderRadius:8, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ color:"#555", fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Importo</div>
+                    <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#f5c400", fontSize:26, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                  </div>
+
+                  {/* Details grid */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+                    {[
+                      { label:"Data", value:exp.date },
+                      { label:"Categoria", value:`${cat.icon} ${cat.label}` },
+                      ...(exp.sharedWith ? [{ label:"Con chi", value:exp.sharedWith }] : []),
+                      { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
+                    ].map(d => (
+                      <div key={d.label} style={{ background:"#000", borderRadius:6, padding:"10px 12px" }}>
+                        <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
+                        <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{d.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Admin note */}
+                  {exp.note && (
+                    <div style={{ background: exp.status==="approved" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border:`1px solid ${exp.status==="approved" ? "#22c55e30" : "#ef444430"}`, borderRadius:8, padding:"12px 14px", marginBottom:14 }}>
+                      <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
+                      <div style={{ color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontSize:13, fontWeight:600 }}>💬 {exp.note}</div>
+                    </div>
+                  )}
+
+                  {/* Receipt image */}
+                  {imgSrc && (
+                    <div style={{ borderRadius:8, overflow:"hidden", border:"1px solid #1a1a1a", marginBottom:14, cursor:"pointer" }}
+                      onClick={() => setViewReceipt(imgSrc)}>
+                      <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
+                      <div style={{ background:"#000", padding:"7px 12px", color:"#555", fontSize:11 }}>📷 Tocca per ingrandire</div>
+                    </div>
+                  )}
+
+                  <button onClick={() => setViewingExpense(null)}
+                    style={{ width:"100%", padding:13, borderRadius:8, border:"1px solid #272727", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                    Chiudi
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           <InstallBanner />
         </div>
       );
