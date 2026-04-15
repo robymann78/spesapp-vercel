@@ -74,6 +74,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
@@ -774,17 +775,82 @@
         setNoteInput("");
       };
 
-      const exportCSV = () => {
-        const rows = [["ID","Dipendente","Data","Importo","Categoria","Descrizione","Stato","Scontrino"]];
+      const exportExcel = () => {
+        const XLSX = window.XLSX;
+        if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
+
+        const today = new Date().toISOString().split("T")[0];
+        const wb = XLSX.utils.book_new();
+
+        // ── Foglio 1: Tutte le spese ──────────────────────────────────────
+        const allRows = expenses.map(e => ({
+          "ID":           e.id,
+          "Dipendente":   e.userName,
+          "Data":         e.date,
+          "Importo":      parseFloat(e.amount),
+          "Valuta":       e.currency || "EUR",
+          "Categoria":    getCatInfo(e.category).label,
+          "Descrizione":  e.description,
+          "Con chi":      e.sharedWith || "",
+          "Stato":        STATUS_CONFIG[e.status].label,
+          "Scontrino":    e.receipt ? "Sì" : "No",
+          "Note admin":   e.note || "",
+        }));
+        const ws1 = XLSX.utils.json_to_sheet(allRows);
+
+        // Larghezze colonne
+        ws1["!cols"] = [
+          {wch:8}, {wch:20}, {wch:12}, {wch:10}, {wch:8},
+          {wch:16}, {wch:40}, {wch:24}, {wch:12}, {wch:10}, {wch:24}
+        ];
+        XLSX.utils.book_append_sheet(wb, ws1, "Tutte le spese");
+
+        // ── Foglio 2: Riepilogo per dipendente ────────────────────────────
+        const byEmp = {};
         expenses.forEach(e => {
-          const cat = getCatInfo(e.category);
-          rows.push([e.id, e.userName, e.date, e.amount.toFixed(2), cat.label, `"${e.description}"`, STATUS_CONFIG[e.status].label, e.receipt ? "Sì" : "No"]);
+          if (!byEmp[e.userName]) byEmp[e.userName] = { tot: 0, approvato: 0, inAttesa: 0, rifiutato: 0, n: 0 };
+          byEmp[e.userName].n++;
+          byEmp[e.userName].tot += e.amount;
+          if (e.status === "approved") byEmp[e.userName].approvato += e.amount;
+          if (e.status === "pending")  byEmp[e.userName].inAttesa += e.amount;
+          if (e.status === "rejected") byEmp[e.userName].rifiutato += e.amount;
         });
-        const csv = rows.map(r => r.join(";")).join("\n");
-        const blob = new Blob(["\uFEFF"+csv], { type:"text/csv;charset=utf-8" });
-        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-        a.download = `spese_${new Date().toISOString().split("T")[0]}.csv`; a.click();
+        const empRows = Object.entries(byEmp).map(([name, v]) => ({
+          "Dipendente":       name,
+          "N. spese":         v.n,
+          "Totale (€)":       parseFloat(v.tot.toFixed(2)),
+          "Approvato (€)":    parseFloat(v.approvato.toFixed(2)),
+          "In attesa (€)":    parseFloat(v.inAttesa.toFixed(2)),
+          "Rifiutato (€)":    parseFloat(v.rifiutato.toFixed(2)),
+        }));
+        const ws2 = XLSX.utils.json_to_sheet(empRows);
+        ws2["!cols"] = [{wch:22},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14}];
+        XLSX.utils.book_append_sheet(wb, ws2, "Per dipendente");
+
+        // ── Foglio 3: Riepilogo per categoria ─────────────────────────────
+        const byCat = {};
+        expenses.forEach(e => {
+          const lbl = getCatInfo(e.category).label;
+          if (!byCat[lbl]) byCat[lbl] = { tot: 0, n: 0 };
+          byCat[lbl].n++;
+          byCat[lbl].tot += e.amount;
+        });
+        const catRows = Object.entries(byCat)
+          .sort((a,b) => b[1].tot - a[1].tot)
+          .map(([cat, v]) => ({
+            "Categoria":   cat,
+            "N. spese":    v.n,
+            "Totale (€)":  parseFloat(v.tot.toFixed(2)),
+          }));
+        const ws3 = XLSX.utils.json_to_sheet(catRows);
+        ws3["!cols"] = [{wch:20},{wch:10},{wch:14}];
+        XLSX.utils.book_append_sheet(wb, ws3, "Per categoria");
+
+        // ── Download ──────────────────────────────────────────────────────
+        XLSX.writeFile(wb, `SpesApp_Report_${today}.xlsx`);
       };
+
+      const exportCSV = exportExcel; // backward compat
 
       const TABS = [
         { id:"dashboard", label:"Dashboard", icon:"📊" },
@@ -894,7 +960,7 @@
                       </button>
                     ))}
                   </div>
-                  <button onClick={exportCSV} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #2a2a2a", background:"#141414", color:"#999999", fontSize:12, fontWeight:600, cursor:"pointer" }}>📥 CSV</button>
+                  <button onClick={exportExcel} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #f5c400", background:"rgba(245,196,0,0.08)", color:"#f5c400", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>📊 Excel</button>
                 </div>
 
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
