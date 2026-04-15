@@ -14,57 +14,58 @@
   <!-- Apple touch icon fallback (emoji-based, generated inline) -->
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
     :root {
       --yellow: #f5c400;
-      --yellow-soft: rgba(245,196,0,0.12);
-      --yellow-glow: 0 0 32px rgba(245,196,0,0.2);
-      --bg: #080808;
-      --surface: #121212;
-      --surface2: #1c1c1c;
-      --surface3: #252525;
-      --border: #2e2e2e;
-      --border2: #3a3a3a;
-      --text: #f5f5f5;
-      --text2: #b0b0b0;
-      --text3: #6b6b6b;
-      --green: #34d399;
-      --green-soft: rgba(52,211,153,0.12);
-      --red: #f87171;
-      --red-soft: rgba(248,113,113,0.12);
-      --amber: #fbbf24;
-      --amber-soft: rgba(251,191,36,0.12);
-      --radius: 16px;
-      --radius-sm: 10px;
-      --radius-xs: 6px;
+      --yellow-dark: #c9a000;
+      --yellow-glow: rgba(245,196,0,0.25);
+      --black: #000000;
+      --surface: #111111;
+      --surface2: #1a1a1a;
+      --border: #272727;
+      --text: #ffffff;
+      --text2: #aaaaaa;
+      --text3: #666666;
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f59e0b;
     }
     body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      background: #000000;
+      color: #ffffff;
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
-      font-size: 16px;
-      line-height: 1.5;
     }
     input, button, select { font-family: inherit; }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
-
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse-yellow { 0%,100% { box-shadow: 0 0 0 0 rgba(245,196,0,0.4); } 50% { box-shadow: 0 0 0 8px rgba(245,196,0,0); } }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 3px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    /* Diagonal stripe texture for headers */
+    .stripe-bg {
+      background-image: repeating-linear-gradient(
+        -45deg, transparent, transparent 8px,
+        rgba(245,196,0,0.03) 8px, rgba(245,196,0,0.03) 16px
+      );
+    }
+    /* Yellow accent line */
+    .accent-line {
+      display: block; height: 3px; width: 32px;
+      background: var(--yellow); border-radius: 2px; margin-bottom: 8px;
+    }
+    /* Card hover */
+    .card-hover { transition: border-color 0.2s, transform 0.15s; }
+    .card-hover:active { transform: scale(0.985); }
 
-    /* Input focus glow */
-    input:focus, select:focus { outline: none; }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -78,42 +79,15 @@
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
 
-    // ─── SVG Icons ───────────────────────────────────────────────────────────────
-    const Icon = ({ name, size=20, color="currentColor", style={} }) => {
-      const icons = {
-        briefcase: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>,
-        logout: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-        eye: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-        eyeOff: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
-        plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" style={style}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-        edit: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-        trash: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
-        check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={style}><polyline points="20 6 9 17 4 12"/></svg>,
-        x: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" style={style}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-        camera: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
-        image: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
-        download: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-        clock: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-        users: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-        chart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-        list: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
-        receipt: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>,
-        info: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
-        star: <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none" style={style}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-        wifi: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 16 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
-      };
-      return icons[name] || null;
-    };
-
     // ─── Constants ────────────────────────────────────────────────────────────
 
     const CATEGORIES = [
-      { id: "travel",    label: "Viaggio",        icon: "✈️",  color: "var(--yellow)" },
-      { id: "meals",     label: "Pasti",           icon: "🍽️", color: "var(--amber)" },
+      { id: "travel",    label: "Viaggio",        icon: "✈️",  color: "#f5c400" },
+      { id: "meals",     label: "Pasti",           icon: "🍽️", color: "#f59e0b" },
       { id: "hotel",     label: "Alloggio",        icon: "🏨",  color: "#8b5cf6" },
-      { id: "fuel",      label: "Carburante",      icon: "⛽",  color: "var(--red)" },
+      { id: "fuel",      label: "Carburante",      icon: "⛽",  color: "#ef4444" },
       { id: "client",    label: "Rappresentanza",  icon: "🤝",  color: "#10b981" },
-      { id: "materials", label: "Materiali",       icon: "📦",  color: "var(--yellow)" },
+      { id: "materials", label: "Materiali",       icon: "📦",  color: "#d4a800" },
       { id: "other",     label: "Altro",           icon: "📋",  color: "#6b7280" },
     ];
 
@@ -139,9 +113,9 @@
     ];
 
     const STATUS_CONFIG = {
-      pending:  { label: "In attesa", color: "var(--amber)", bg: "rgba(251,191,36,0.1)", dot: "var(--amber)" },
-      approved: { label: "Approvata", color: "var(--green)", bg: "rgba(52,211,153,0.1)", dot: "var(--green)" },
-      rejected: { label: "Rifiutata", color: "var(--red)", bg: "rgba(248,113,113,0.1)", dot: "var(--red)" },
+      pending:  { label: "In attesa", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", dot: "#f59e0b" },
+      approved: { label: "Approvata", color: "#22c55e", bg: "rgba(34,197,94,0.1)", dot: "#22c55e" },
+      rejected: { label: "Rifiutata", color: "#ef4444", bg: "rgba(239,68,68,0.1)", dot: "#ef4444" },
     };
 
     // ─── Persistence — Supabase Cloud ────────────────────────────────────────
@@ -235,8 +209,8 @@
     function StatusBadge({ status }) {
       const cfg = STATUS_CONFIG[status];
       return (
-        <span style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:20, fontSize:13, fontWeight:600, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}30` }}>
-          <span style={{ width:6, height:6, borderRadius:"50%", background:cfg.color, display:"inline-block", flexShrink:0 }} />
+        <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:3, fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}50`, letterSpacing:0.5, textTransform:"uppercase" }}>
+          <span style={{ width:4, height:4, borderRadius:"50%", background:cfg.dot, display:"inline-block" }} />
           {cfg.label}
         </span>
       );
@@ -244,13 +218,8 @@
 
     function Avatar({ name, size = 36 }) {
       const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
-      const colors = [
-        ["var(--yellow)","#000"], ["var(--green)","#000"], ["#60a5fa","#000"],
-        ["var(--red)","#fff"], ["#a78bfa","#fff"], ["#fb923c","#000"]
-      ];
-      const [bg, fg] = colors[name.charCodeAt(0) % colors.length];
       return (
-        <div style={{ width:size, height:size, borderRadius:"50%", background:bg, display:"flex", alignItems:"center", justifyContent:"center", color:fg, fontWeight:700, fontSize:size*0.4, flexShrink:0, letterSpacing:0.5 }}>
+        <div style={{ width:size, height:size, borderRadius:3, background:"#f5c400", display:"flex", alignItems:"center", justifyContent:"center", color:"#000", fontWeight:900, fontSize:size*0.38, flexShrink:0, fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:0.5 }}>
           {initials}
         </div>
       );
@@ -299,18 +268,18 @@
           <div style={{ display:"flex", alignItems:"flex-start", gap:12, maxWidth:480, margin:"0 auto" }}>
             <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#f5c400,#d4a800)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>💼</div>
             <div style={{ flex:1 }}>
-              <div style={{ color:"var(--text)", fontWeight:700, fontSize:14 }}>Installa SpesApp</div>
+              <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>Installa SpesApp</div>
               {isIOS && !deferredPrompt
-                ? <div style={{ color:"var(--text2)", fontSize:14, marginTop:3 }}>Tocca <strong style={{color:"var(--yellow)"}}>Condividi</strong> → <strong style={{color:"var(--yellow)"}}>Aggiungi a Home</strong> per installarla.</div>
-                : <div style={{ color:"var(--text2)", fontSize:14, marginTop:3 }}>Installala sul telefono per usarla anche offline.</div>
+                ? <div style={{ color:"#999999", fontSize:12, marginTop:3 }}>Tocca <strong style={{color:"#f5c400"}}>Condividi</strong> → <strong style={{color:"#f5c400"}}>Aggiungi a Home</strong> per installarla.</div>
+                : <div style={{ color:"#999999", fontSize:12, marginTop:3 }}>Installala sul telefono per usarla anche offline.</div>
               }
               {deferredPrompt && (
-                <button onClick={install} style={{ marginTop:8, padding:"8px 18px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#f5c400,#d4a800)", color:"#000", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+                <button onClick={install} style={{ marginTop:8, padding:"8px 18px", borderRadius:8, border:"none", background:"linear-gradient(135deg,#f5c400,#d4a800)", color:"#000", fontWeight:700, fontSize:13, cursor:"pointer" }}>
                   Installa ora
                 </button>
               )}
             </div>
-            <button onClick={dismiss} style={{ background:"none", border:"none", color:"var(--text3)", fontSize:18, cursor:"pointer", padding:4, lineHeight:1 }}>✕</button>
+            <button onClick={dismiss} style={{ background:"none", border:"none", color:"#666666", fontSize:18, cursor:"pointer", padding:4, lineHeight:1 }}>✕</button>
           </div>
         </div>
       );
@@ -334,82 +303,77 @@
           if (user) { onLogin(user); } else { setError("Email o password non corretti."); setLoading(false); }
         }, 400);
       };
+
       const handleKey = e => { if (e.key === "Enter") handleLogin(); };
 
       return (
-        <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", position:"relative", overflow:"hidden" }}>
-          {/* Glow background */}
-          <div style={{ position:"absolute", top:"20%", left:"50%", transform:"translateX(-50%)", width:400, height:400, background:"radial-gradient(circle, rgba(245,196,0,0.06) 0%, transparent 70%)", pointerEvents:"none" }} />
-
-          {/* Logo */}
-          <div style={{ marginBottom:40, textAlign:"center", animation:"fadeUp 0.5s ease both" }}>
-            <div style={{ width:72, height:72, background:"linear-gradient(135deg, #f5c400, #d4a800)", borderRadius:22, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px", boxShadow:"0 8px 40px rgba(245,196,0,0.25)" }}>
-              <Icon name="briefcase" size={32} color="#000" />
-            </div>
-            <div style={{ fontSize:32, fontWeight:800, color:"var(--text)", letterSpacing:-0.5 }}>SpesApp</div>
-            <div style={{ fontSize:15, color:"var(--text3)", marginTop:4, fontWeight:400 }}>Alberici S.p.A.</div>
+        <div style={{ minHeight:"100vh", background:"#000", display:"flex", flexDirection:"column", overflow:"hidden", position:"relative" }}>
+          {/* Yellow diagonal accent top */}
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:4, background:"linear-gradient(90deg,#f5c400,#d4a800,#f5c400)", backgroundSize:"200% 100%"}} />
+          {/* Large background text watermark */}
+          <div style={{ position:"absolute", top:"8%", left:"-5%", fontFamily:"'Barlow Condensed',sans-serif", fontSize:"clamp(80px,22vw,160px)", fontWeight:900, color:"rgba(255,255,255,0.025)", lineHeight:1, userSelect:"none", letterSpacing:-2, pointerEvents:"none" }}>
+            ALBERICI
           </div>
 
-          {/* Card */}
-          <div style={{ width:"100%", maxWidth:400, animation:"fadeUp 0.5s 0.1s ease both", opacity:0 }}>
-            <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:24, padding:"32px 28px", boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }}>
-
-              <div style={{ marginBottom:20 }}>
-                <label style={{ display:"block", fontSize:13, fontWeight:600, color:"var(--text2)", marginBottom:8 }}>Email</label>
-                <input type="email" inputMode="email" autoComplete="email"
-                  placeholder="nome@alberici.net"
-                  value={email} onChange={e => { setEmail(e.target.value); setError(""); }}
-                  onKeyDown={handleKey}
-                  style={{ width:"100%", padding:"14px 16px", borderRadius:14, border:`1.5px solid ${error ? "var(--red)" : "var(--border2)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:16, transition:"border-color 0.2s" }}
-                  onFocus={e => { if(!error) e.target.style.borderColor="var(--yellow)"; }}
-                  onBlur={e => { if(!error) e.target.style.borderColor="var(--border2)"; }}
-                />
+          <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 20px 24px", position:"relative", zIndex:1 }}>
+            {/* Logo block */}
+            <div style={{ marginBottom:40, animation:"fadeUp 0.5s ease both" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:6 }}>
+                <div style={{ width:52, height:52, background:"#f5c400", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow:"0 0 32px rgba(245,196,0,0.4)", flexShrink:0 }}>💼</div>
+                <div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:36, fontWeight:900, letterSpacing:1, color:"#fff", lineHeight:1, textTransform:"uppercase" }}>SpesApp</div>
+                  <div style={{ fontSize:11, fontWeight:600, color:"#f5c400", letterSpacing:3, textTransform:"uppercase" }}>Alberici S.p.A.</div>
+                </div>
               </div>
+              <div style={{ height:2, background:"linear-gradient(90deg,#f5c400,transparent)", borderRadius:1 }} />
+            </div>
 
-              <div style={{ marginBottom:error ? 12 : 24 }}>
-                <label style={{ display:"block", fontSize:13, fontWeight:600, color:"var(--text2)", marginBottom:8 }}>Password</label>
-                <div style={{ position:"relative" }}>
-                  <input type={showPwd ? "text" : "password"} autoComplete="current-password"
-                    placeholder="••••••••"
-                    value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
+            {/* Form card */}
+            <div style={{ width:"100%", maxWidth:380, animation:"fadeUp 0.6s 0.1s ease both", opacity:0 }}>
+              <div style={{ background:"#111", border:"1px solid #272727", borderTop:"2px solid #f5c400", borderRadius:"0 0 16px 16px", padding:"28px 24px" }}>
+                <div style={{ marginBottom:22 }}>
+                  <label style={{ color:"#aaa", fontSize:10, fontWeight:700, display:"block", marginBottom:7, letterSpacing:1.5, textTransform:"uppercase" }}>Email</label>
+                  <input type="email" inputMode="email" autoComplete="email"
+                    placeholder="nome@alberici.net"
+                    value={email} onChange={e => { setEmail(e.target.value); setError(""); }}
                     onKeyDown={handleKey}
-                    style={{ width:"100%", padding:"14px 48px 14px 16px", borderRadius:14, border:`1.5px solid ${error ? "var(--red)" : "var(--border2)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:16, transition:"border-color 0.2s" }}
-                    onFocus={e => { if(!error) e.target.style.borderColor="var(--yellow)"; }}
-                    onBlur={e => { if(!error) e.target.style.borderColor="var(--border2)"; }}
+                    style={{ width:"100%", padding:"13px 16px", borderRadius:6, border: error ? "1.5px solid #ef4444" : "1.5px solid #272727", background:"#000", color:"#fff", fontSize:15, outline:"none", transition:"border 0.2s", fontFamily:"'Barlow',sans-serif" }}
+                    onFocus={e => { if (!error) e.target.style.borderColor="#f5c400"; }}
+                    onBlur={e => { if (!error) e.target.style.borderColor="#272727"; }}
                   />
-                  <button onClick={() => setShowPwd(p => !p)}
-                    style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"var(--text3)", cursor:"pointer", display:"flex", padding:4 }}>
-                    <Icon name={showPwd ? "eyeOff" : "eye"} size={18} color="var(--text3)" />
-                  </button>
                 </div>
+                <div style={{ marginBottom:8 }}>
+                  <label style={{ color:"#aaa", fontSize:10, fontWeight:700, display:"block", marginBottom:7, letterSpacing:1.5, textTransform:"uppercase" }}>Password</label>
+                  <div style={{ position:"relative" }}>
+                    <input type={showPwd ? "text" : "password"} autoComplete="current-password"
+                      placeholder="••••••••"
+                      value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
+                      onKeyDown={handleKey}
+                      style={{ width:"100%", padding:"13px 48px 13px 16px", borderRadius:6, border: error ? "1.5px solid #ef4444" : "1.5px solid #272727", background:"#000", color:"#fff", fontSize:15, outline:"none", transition:"border 0.2s", fontFamily:"'Barlow',sans-serif" }}
+                      onFocus={e => { if (!error) e.target.style.borderColor="#f5c400"; }}
+                      onBlur={e => { if (!error) e.target.style.borderColor="#272727"; }}
+                    />
+                    <button onClick={() => setShowPwd(p => !p)} style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#666", cursor:"pointer", fontSize:15, padding:2 }}>
+                      {showPwd ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                </div>
+                {error && <div style={{ color:"#ef4444", fontSize:12, fontWeight:600, margin:"10px 0 0", display:"flex", alignItems:"center", gap:5 }}>⚠️ {error}</div>}
+                <button onClick={handleLogin} disabled={loading}
+                  style={{ width:"100%", marginTop:20, padding:"15px", borderRadius:6, border:"none", background: loading ? "#333" : "#f5c400", color:"#000", fontWeight:800, fontSize:15, cursor: loading ? "default" : "pointer", transition:"all 0.2s", letterSpacing:0.5, textTransform:"uppercase", boxShadow: loading ? "none" : "0 4px 24px rgba(245,196,0,0.35)" }}>
+                  {loading ? "Accesso in corso..." : "Accedi →"}
+                </button>
               </div>
-
-              {error && (
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:12, marginBottom:20 }}>
-                  <Icon name="info" size={16} color="var(--red)" />
-                  <span style={{ color:"var(--red)", fontSize:14, fontWeight:500 }}>{error}</span>
-                </div>
-              )}
-
-              <button onClick={handleLogin} disabled={loading}
-                style={{ width:"100%", padding:"16px", borderRadius:14, border:"none", background: loading ? "var(--surface3)" : "var(--yellow)", color: loading ? "var(--text3)" : "#000", fontWeight:700, fontSize:17, cursor: loading ? "default" : "pointer", transition:"all 0.2s", boxShadow: loading ? "none" : "0 4px 24px rgba(245,196,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                {loading ? (
-                  <div style={{ width:20, height:20, border:"2px solid var(--border2)", borderTopColor:"var(--text3)", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-                ) : (
-                  <>{`Accedi`}</>
-                )}
-              </button>
             </div>
 
-            <div style={{ textAlign:"center", marginTop:20, fontSize:13, color:"var(--text3)" }}>
-              Gestione Note Spese · {new Date().getFullYear()}
-            </div>
+            <div style={{ marginTop:24, color:"#333", fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Gestione Note Spese · {new Date().getFullYear()}</div>
           </div>
         </div>
       );
     }
 
-    
+    // ─── New Expense Modal ────────────────────────────────────────────────────
+
     function NewExpenseModal({ onClose, onSave, currentUserId, currentUserName, initialData }) {
       const isEdit = !!initialData;
       const [form, setForm] = useState(initialData ? {
@@ -506,11 +470,11 @@
 
       return (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && onClose()}>
-          <div style={{ background:"var(--surface)", borderRadius:"22px 22px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid var(--border)", boxShadow:"0 -24px 60px rgba(0,0,0,0.6)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+          <div style={{ background:"#141414", borderRadius:"22px 22px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #2a2a2a", boxShadow:"0 -24px 60px rgba(0,0,0,0.6)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
             <div style={{ width:36, height:4, borderRadius:2, background:"#2a2a2a", margin:"0 auto 18px" }} />
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-              <h2 style={{ color:"var(--text)", fontSize:17, fontWeight:800, margin:0 }}>{isEdit ? "Modifica Spesa" : "Nuova Spesa"}</h2>
-              <button onClick={onClose} style={{ background:"var(--bg)", border:"1px solid var(--border)", color:"var(--text2)", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:15 }}>✕</button>
+              <h2 style={{ color:"#f1f5f9", fontSize:17, fontWeight:800, margin:0 }}>{isEdit ? "Modifica Spesa" : "Nuova Spesa"}</h2>
+              <button onClick={onClose} style={{ background:"#000", border:"1px solid #2a2a2a", color:"#999999", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:13 }}>✕</button>
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -518,43 +482,43 @@
               {ocring && (
                 <div style={{ background:"rgba(245,196,0,0.08)", border:"1px solid rgba(245,196,0,0.2)", borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:16, height:16, border:"2px solid #d4a800", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", flexShrink:0 }} />
-                  <div style={{ color:"var(--yellow)", fontSize:15, fontWeight:600 }}>Lettura scontrino in corso...</div>
+                  <div style={{ color:"#f5c400", fontSize:13, fontWeight:600 }}>Lettura scontrino in corso...</div>
                 </div>
               )}
               {ocrError && (
                 <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"10px 14px" }}>
-                  <div style={{ color:"var(--amber)", fontSize:14, fontWeight:600 }}>⚠️ {ocrError}</div>
+                  <div style={{ color:"#f59e0b", fontSize:12, fontWeight:600 }}>⚠️ {ocrError}</div>
                 </div>
               )}
 
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div>
-                  <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DATA</label>
+                  <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DATA</label>
                   <input type="date" value={form.date} onChange={e => setForm({...form, date:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg)", color:"var(--text)", fontSize:14 }} />
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14 }} />
                 </div>
                 <div>
-                  <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
-                    IMPORTO {ocring && <span style={{color:"var(--yellow)"}}>⟳</span>}
+                  <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
+                    IMPORTO {ocring && <span style={{color:"#d4a800"}}>⟳</span>}
                   </label>
                   <div style={{ display:"flex", gap:6 }}>
                     <select value={form.currency} onChange={e => setForm({...form, currency:e.target.value})}
-                      style={{ padding:"11px 10px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg)", color:"var(--text)", fontSize:14, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      style={{ padding:"11px 10px", borderRadius:10, border:"1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
                       <option value="EUR">€ EUR</option>
                       <option value="USD">$ USD</option>
                     </select>
                     <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
-                      style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #d4a800" : "1px solid #2a2a2a", background:"var(--bg)", color:"var(--text)", fontSize:14, transition:"border 0.3s" }} />
+                      style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #d4a800" : "1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:7, letterSpacing:0.8 }}>CATEGORIA</label>
+                <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:7, letterSpacing:0.8 }}>CATEGORIA</label>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {CATEGORIES.map(cat => (
                     <button key={cat.id} onClick={() => setForm({...form, category:cat.id})}
-                      style={{ padding:"6px 11px", borderRadius:20, border:"2px solid", borderColor: form.category===cat.id ? cat.color : "#2a2a2a", background: form.category===cat.id ? `${cat.color}20` : "#0a0a0a", color: form.category===cat.id ? cat.color : "#666666", fontSize:14, fontWeight:600, cursor:"pointer", transition:"all 0.15s" }}>
+                      style={{ padding:"6px 11px", borderRadius:20, border:"2px solid", borderColor: form.category===cat.id ? cat.color : "#2a2a2a", background: form.category===cat.id ? `${cat.color}20` : "#0a0a0a", color: form.category===cat.id ? cat.color : "#666666", fontSize:12, fontWeight:600, cursor:"pointer", transition:"all 0.15s" }}>
                       {cat.icon} {cat.label}
                     </button>
                   ))}
@@ -562,51 +526,51 @@
               </div>
 
               <div>
-                <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
-                  DESCRIZIONE {ocring && <span style={{color:"var(--yellow)"}}>⟳</span>}
+                <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>
+                  DESCRIZIONE {ocring && <span style={{color:"#d4a800"}}>⟳</span>}
                 </label>
                 <input type="text" placeholder="Descrivi la spesa..." value={form.description} onChange={e => setForm({...form, description:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #d4a800" : "1px solid #2a2a2a", background:"var(--bg)", color:"var(--text)", fontSize:14, transition:"border 0.3s" }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #d4a800" : "1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
               </div>
 
               <div>
-                <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>CON CHI <span style={{color:"#555555", fontWeight:400, textTransform:"none", letterSpacing:0}}>— opzionale</span></label>
+                <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>CON CHI <span style={{color:"#555555", fontWeight:400, textTransform:"none", letterSpacing:0}}>— opzionale</span></label>
                 <input type="text" placeholder="Es. pranzo con Roberto, cliente Bonfiglioli..." value={form.sharedWith} onChange={e => setForm({...form, sharedWith:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid var(--border)", background:"var(--bg)", color:"var(--text)", fontSize:14 }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14 }} />
               </div>
 
               <div>
-                <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:8, letterSpacing:0.8 }}>SCONTRINO / RICEVUTA</label>
+                <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:8, letterSpacing:0.8 }}>SCONTRINO / RICEVUTA</label>
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handleFile} />
                 <input ref={galleryRef} type="file" accept="image/*,application/pdf" style={{ display:"none" }} onChange={handleFile} />
 
                 {!receiptPreview ? (
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                     <button onClick={() => cameraRef.current.click()}
-                      style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #2a2a2a", background:"var(--bg)", color:"var(--text2)", fontSize:15, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+                      style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #2a2a2a", background:"#000", color:"#999999", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:28 }}>📷</span><span>Fotocamera</span>
                     </button>
                     <button onClick={() => galleryRef.current.click()}
-                      style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #2a2a2a", background:"var(--bg)", color:"var(--text2)", fontSize:15, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+                      style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #2a2a2a", background:"#000", color:"#999999", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:28 }}>🖼️</span><span>Galleria / PDF</span>
                     </button>
                   </div>
                 ) : (
-                  <div style={{ borderRadius:14, overflow:"hidden", border:`2px solid ${ocring ? "var(--yellow)" : "#10b981"}`, position:"relative", transition:"border 0.3s" }}>
+                  <div style={{ borderRadius:14, overflow:"hidden", border:`2px solid ${ocring ? "#d4a800" : "#10b981"}`, position:"relative", transition:"border 0.3s" }}>
                     <img src={receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
                     {ocring && (
                       <div style={{ position:"absolute", inset:0, background:"rgba(245,196,0,0.2)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
-                        <div style={{ color:"var(--text)", fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ color:"#fff", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", gap:8 }}>
                           <div style={{ width:18, height:18, border:"3px solid #fff", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
                           Analisi AI in corso...
                         </div>
                       </div>
                     )}
                     <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)", display:"flex", alignItems:"flex-end", padding:10, justifyContent:"space-between", pointerEvents: ocring ? "none" : "auto" }}>
-                      <div style={{ color:"var(--text)", fontSize:15, fontWeight:600 }}>{ocring ? "🤖 Lettura in corso..." : `✅ ${receiptName || "Allegato"}`}</div>
+                      <div style={{ color:"#fff", fontSize:11, fontWeight:600 }}>{ocring ? "🤖 Lettura in corso..." : `✅ ${receiptName || "Allegato"}`}</div>
                       <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={() => cameraRef.current.click()} style={{ padding:"5px 10px", borderRadius:12, border:"none", background:"rgba(255,255,255,0.2)", color:"var(--text)", fontSize:15, fontWeight:600, cursor:"pointer", backdropFilter:"blur(4px)" }}>📷 Rifai</button>
-                        <button onClick={clearReceipt} style={{ padding:"5px 10px", borderRadius:12, border:"none", background:"rgba(239,68,68,0.7)", color:"var(--text)", fontSize:15, fontWeight:600, cursor:"pointer" }}>Rimuovi</button>
+                        <button onClick={() => cameraRef.current.click()} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(255,255,255,0.2)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer", backdropFilter:"blur(4px)" }}>📷 Rifai</button>
+                        <button onClick={clearReceipt} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(239,68,68,0.7)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer" }}>Rimuovi</button>
                       </div>
                     </div>
                   </div>
@@ -615,7 +579,7 @@
             </div>
 
             <div style={{ display:"flex", gap:10, marginTop:20, marginBottom:4 }}>
-              <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid var(--border)", background:"none", color:"var(--text2)", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+              <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid #2a2a2a", background:"none", color:"#999999", fontWeight:600, cursor:"pointer" }}>Annulla</button>
               <button onClick={handleSave} disabled={!valid || saving || ocring}
                 style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid && !ocring ? "linear-gradient(135deg,#f5c400,#d4a800)" : "#2a2a2a", color: valid && !ocring ? "#000" : "#666666", fontWeight:700, fontSize:15, cursor: valid && !ocring ? "pointer" : "default", boxShadow: valid && !ocring ? "0 4px 16px rgba(245,196,0,0.3)" : "none", transition:"all 0.2s" }}>
                 {ocring ? "⟳ Lettura..." : saving ? (isEdit ? "Salvo..." : "Invio...") : (isEdit ? "Salva Modifiche" : "Invia Spesa")}
@@ -632,27 +596,27 @@
       const cat = getCatInfo(exp.category);
       const imgSrc = exp.receiptFull || exp.receiptPreview;
       const isApproved = exp.status === "approved";
-      const accentColor = isApproved ? "var(--green)" : "var(--red)";
+      const accentColor = isApproved ? "#22c55e" : "#ef4444";
 
       return (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:150 }}
           onClick={e => e.target===e.currentTarget && onClose()}>
-          <div style={{ background:"var(--surface)", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid var(--border)", borderTop:`3px solid ${accentColor}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
+          <div style={{ background:"#111", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #1a1a1a", borderTop:`3px solid ${accentColor}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
             <div style={{ width:36, height:4, borderRadius:2, background:"#2a2a2a", margin:"0 auto 16px" }} />
 
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
               <div>
-                <div style={{ color:accentColor, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>
+                <div style={{ color:accentColor, fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>
                   {isApproved ? "✓ Approvata" : "✕ Rifiutata"}
                 </div>
-                <div style={{ color:"var(--text)", fontWeight:800, fontSize:16 }}>{exp.description}</div>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>{exp.description}</div>
               </div>
-              <button onClick={onClose} style={{ background:"var(--surface2)", border:"1px solid var(--border2)", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, flexShrink:0 }}>✕</button>
+              <button onClick={onClose} style={{ background:"#1a1a1a", border:"1px solid #272727", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:12, flexShrink:0 }}>✕</button>
             </div>
 
-            <div style={{ background:"var(--bg)", borderRadius:14, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ color:"var(--text3)", fontSize:15, textTransform:"uppercase", letterSpacing:1 }}>Importo</div>
-              <div style={{ fontFamily:"'Outfit',sans-serif", color:"var(--yellow)", fontSize:26, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+            <div style={{ background:"#000", borderRadius:8, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ color:"#555", fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Importo</div>
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#f5c400", fontSize:26, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
             </div>
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
@@ -662,30 +626,30 @@
                 ...(exp.sharedWith ? [{ label:"Con chi", value:exp.sharedWith }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
               ].map(d => (
-                <div key={d.label} style={{ background:"var(--bg)", borderRadius:12, padding:"10px 12px" }}>
-                  <div style={{ color:"var(--text3)", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
-                  <div style={{ color:"var(--text)", fontSize:15, fontWeight:600 }}>{d.value}</div>
+                <div key={d.label} style={{ background:"#000", borderRadius:6, padding:"10px 12px" }}>
+                  <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
+                  <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{d.value}</div>
                 </div>
               ))}
             </div>
 
             {exp.note && (
-              <div style={{ background: isApproved ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border:`1px solid ${accentColor}30`, borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
-                <div style={{ color:"var(--text3)", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
-                <div style={{ color:accentColor, fontSize:15, fontWeight:600 }}>💬 {exp.note}</div>
+              <div style={{ background: isApproved ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border:`1px solid ${accentColor}30`, borderRadius:8, padding:"12px 14px", marginBottom:14 }}>
+                <div style={{ color:"#555", fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
+                <div style={{ color:accentColor, fontSize:13, fontWeight:600 }}>💬 {exp.note}</div>
               </div>
             )}
 
             {imgSrc && (
-              <div style={{ borderRadius:14, overflow:"hidden", border:"1px solid var(--border)", marginBottom:14, cursor:"pointer" }}
+              <div style={{ borderRadius:8, overflow:"hidden", border:"1px solid #1a1a1a", marginBottom:14, cursor:"pointer" }}
                 onClick={() => onViewReceipt(imgSrc)}>
                 <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
-                <div style={{ background:"var(--bg)", padding:"7px 12px", color:"var(--text3)", fontSize:15 }}>📷 Tocca per ingrandire</div>
+                <div style={{ background:"#000", padding:"7px 12px", color:"#555", fontSize:11 }}>📷 Tocca per ingrandire</div>
               </div>
             )}
 
             <button onClick={onClose}
-              style={{ width:"100%", padding:13, borderRadius:14, border:"1px solid var(--border2)", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+              style={{ width:"100%", padding:13, borderRadius:8, border:"1px solid #272727", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>
               Chiudi
             </button>
           </div>
@@ -709,108 +673,110 @@
       const usdTotal = myExpenses.filter(e => e.currency==="USD").reduce((s,e) => s+e.amount, 0);
 
       return (
-        <div style={{ minHeight:"100vh", background:"var(--bg)", paddingBottom:90 }}>
+        <div style={{ minHeight:"100vh", background:"#000", paddingBottom:80 }}>
           {/* Header */}
-          <div style={{ background:"var(--bg)", borderBottom:"1px solid var(--border)", padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:10, backdropFilter:"blur(10px)" }}>
+          <div style={{ background:"#000", borderBottom:"1px solid #1a1a1a", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:10 }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ width:36, height:36, background:"linear-gradient(135deg,#f5c400,#d4a800)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <Icon name="briefcase" size={18} color="#000" />
-              </div>
+              <div style={{ width:6, height:32, background:"#f5c400", borderRadius:3, flexShrink:0 }} />
               <div>
-                <div style={{ color:"var(--text)", fontWeight:800, fontSize:18, lineHeight:1.1 }}>SpesApp</div>
-                <div style={{ color:"var(--text3)", fontSize:13 }}>Alberici S.p.A.</div>
+                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#fff", fontWeight:900, fontSize:18, letterSpacing:1, textTransform:"uppercase", lineHeight:1 }}>SpesApp</div>
+                <div style={{ color:"#555", fontSize:10, letterSpacing:1.5, textTransform:"uppercase" }}>Alberici S.p.A.</div>
               </div>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <Avatar name={user.name} size={34} />
-              <button onClick={onLogout} style={{ background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text2)", padding:"7px 14px", borderRadius:10, cursor:"pointer", fontSize:14, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
-                <Icon name="logout" size={15} color="var(--text2)" />
-                Esci
-              </button>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <Avatar name={user.name} size={30} />
+              <button onClick={onLogout} style={{ background:"none", border:"1px solid #272727", color:"#666", padding:"5px 10px", borderRadius:4, cursor:"pointer", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>Esci</button>
             </div>
           </div>
 
-          {/* Hero card */}
-          <div style={{ background:"linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%)", borderBottom:"1px solid var(--border)", padding:"24px 20px 20px" }}>
+          {/* Hero banner */}
+          <div className="stripe-bg" style={{ background:"#111", borderBottom:"1px solid #1a1a1a", padding:"20px 16px 18px" }}>
             <div style={{ maxWidth:600, margin:"0 auto" }}>
-              <div style={{ fontSize:14, color:"var(--yellow)", fontWeight:600, marginBottom:4, letterSpacing:0.3 }}>Le mie note spese</div>
-              <div style={{ fontSize:30, fontWeight:800, color:"var(--text)", marginBottom:2 }}>{user.name.split(" ")[0]} {user.name.split(" ").slice(1).join(" ")}</div>
-              <div style={{ fontSize:32, fontWeight:800, color:"var(--yellow)", marginBottom:20 }}>{formatEur(total)}</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                <div>
+                  <div style={{ color:"#f5c400", fontSize:10, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>Note Spese</div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#fff", fontSize:28, fontWeight:900, letterSpacing:0.5, textTransform:"uppercase", lineHeight:1 }}>
+                    {user.name.split(" ")[0]}
+                  </div>
+                  <div style={{ color:"#555", fontSize:11, marginTop:2 }}>{user.name.split(" ").slice(1).join(" ")}</div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ color:"#555", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:2 }}>Totale €</div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#f5c400", fontSize:26, fontWeight:900 }}>{formatEur(total)}</div>
+                </div>
+              </div>
 
               {/* Stats row */}
-              <div style={{ display:"flex", gap:10 }}>
+              <div style={{ display:"flex", gap:8, marginTop:16 }}>
                 {[
-                  { label:"Approvato", value:formatEur(approved), color:"var(--green)", bg:"var(--green-soft)" },
-                  { label:"In attesa", value:formatEur(pending), color:"var(--amber)", bg:"var(--amber-soft)" },
-                  ...(usdTotal > 0 ? [{ label:"USD", value:formatAmount(usdTotal,"USD"), color:"var(--yellow)", bg:"var(--yellow-soft)" }] : []),
+                  { label:"Approvato", value:formatEur(approved), color:"#22c55e", bg:"rgba(34,197,94,0.08)" },
+                  { label:"In attesa", value:formatEur(pending), color:"#f59e0b", bg:"rgba(245,158,11,0.08)" },
+                  ...(usdTotal > 0 ? [{ label:"USD", value:formatAmount(usdTotal,"USD"), color:"#f5c400", bg:"rgba(245,196,0,0.08)" }] : []),
                 ].map(s => (
-                  <div key={s.label} style={{ flex:1, background:s.bg, borderRadius:14, padding:"12px 14px" }}>
-                    <div style={{ color:s.color, fontSize:13, fontWeight:600, marginBottom:4 }}>{s.label}</div>
-                    <div style={{ color:"var(--text)", fontSize:17, fontWeight:700 }}>{s.value}</div>
+                  <div key={s.label} style={{ flex:1, background:s.bg, border:`1px solid ${s.color}30`, borderRadius:6, padding:"8px 10px" }}>
+                    <div style={{ color:s.color, fontSize:9, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>{s.label}</div>
+                    <div style={{ color:"#fff", fontSize:13, fontWeight:800 }}>{s.value}</div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <div style={{ maxWidth:600, margin:"0 auto", padding:"20px 16px" }}>
+          <div style={{ maxWidth:600, margin:"0 auto", padding:"16px 14px" }}>
             {/* Add button */}
             <button onClick={() => setShowModal(true)}
-              style={{ width:"100%", padding:"17px 20px", borderRadius:16, border:"none", background:"#f5c400", color:"#000", fontWeight:700, fontSize:17, cursor:"pointer", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 4px 24px rgba(245,196,0,0.25)" }}>
-              <Icon name="plus" size={20} color="#000" />
-              Nuova Nota Spesa
+              style={{ width:"100%", padding:"14px 16px", borderRadius:6, border:"none", background:"#f5c400", color:"#000", fontWeight:800, fontSize:14, cursor:"pointer", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"center", gap:8, letterSpacing:0.5, textTransform:"uppercase", boxShadow:"0 4px 20px rgba(245,196,0,0.25)" }}>
+              <span style={{ fontSize:18, lineHeight:1 }}>+</span> Nuova Nota Spesa
             </button>
 
             {/* List */}
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {myExpenses.length===0 && (
-                <div style={{ textAlign:"center", padding:"48px 20px", color:"var(--text3)" }}>
-                  <div style={{ marginBottom:16, opacity:0.4 }}><Icon name="receipt" size={48} color="var(--text3)" /></div>
-                  <div style={{ fontSize:17, fontWeight:600, marginBottom:6 }}>Nessuna spesa inserita</div>
-                  <div style={{ fontSize:14 }}>Tocca il pulsante qui sopra per iniziare</div>
+                <div style={{ textAlign:"center", padding:40, color:"#666666" }}>
+                  <div style={{ fontSize:36, marginBottom:10 }}>📭</div>
+                  <div>Nessuna spesa inserita</div>
                 </div>
               )}
               {myExpenses.map(exp => {
                 const cat = getCatInfo(exp.category);
                 const canEdit = exp.status === "pending";
-                const accentColor = canEdit ? "var(--yellow)" : exp.status==="approved" ? "var(--green)" : "var(--red)";
                 return (
-                  <div key={exp.id} style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:18, overflow:"hidden" }}>
-                    <div style={{ padding:"16px", display:"flex", alignItems:"flex-start", gap:14 }}>
+                  <div key={exp.id} style={{ background:"#111", border:"1px solid #1a1a1a", borderLeft:`3px solid ${canEdit ? "#f5c400" : exp.status==="approved" ? "#22c55e" : "#ef4444"}`, borderRadius:"0 6px 6px 0", overflow:"hidden", marginBottom:0 }}>
+                    <div style={{ padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
                       {exp.receiptFull || exp.receiptPreview ? (
                         <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
-                          style={{ width:52, height:52, borderRadius:12, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
+                          style={{ width:44, height:44, borderRadius:4, objectFit:"cover", border:"2px solid #22c55e", flexShrink:0, cursor:"pointer" }} />
                       ) : (
-                        <div style={{ width:52, height:52, borderRadius:12, background:`${cat.color}18`, border:`1px solid ${cat.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{cat.icon}</div>
+                        <div style={{ width:44, height:44, borderRadius:4, background:"#1a1a1a", border:"1px solid #272727", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ color:"var(--text)", fontWeight:700, fontSize:16, marginBottom:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
-                        <div style={{ color:"var(--text3)", fontSize:14, marginBottom:exp.sharedWith||exp.note ? 6 : 0 }}>{cat.label} · {exp.date}</div>
-                        {exp.sharedWith && <div style={{ color:"var(--text2)", fontSize:14, marginBottom:2, display:"flex", alignItems:"center", gap:5 }}><Icon name="users" size={13} color="var(--text2)" />{exp.sharedWith}</div>}
-                        {exp.note && <div style={{ color:"var(--amber)", fontSize:14, display:"flex", alignItems:"center", gap:5 }}><Icon name="info" size={13} color="var(--amber)" />{exp.note}</div>}
+                        <div style={{ color:"#fff", fontWeight:700, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
+                        <div style={{ color:"#555", fontSize:11, marginTop:2, letterSpacing:0.3 }}>{cat.label} · {exp.date} {exp.receipt && "· 📎"}</div>
+                        {exp.sharedWith && <div style={{ color:"#888", fontSize:11, marginTop:2 }}>👥 {exp.sharedWith}</div>}
+                        {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
-                        <div style={{ color:"var(--yellow)", fontWeight:800, fontSize:18, marginBottom:6 }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
-                        <StatusBadge status={exp.status} />
+                        <div style={{ color:"#f5c400", fontWeight:900, fontSize:15, fontFamily:"'Barlow Condensed',sans-serif" }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
+                        <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
                       </div>
                     </div>
                     {canEdit ? (
-                      <div style={{ display:"flex", borderTop:"1px solid var(--border)" }}>
+                      <div style={{ display:"flex", borderTop:"1px solid #0a0a0a" }}>
                         <button onClick={() => setEditingExpense(exp)}
-                          style={{ flex:1, padding:"12px", background:"none", border:"none", color:"var(--yellow)", fontWeight:600, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
-                          <Icon name="edit" size={16} color="var(--yellow)" /> Modifica
+                          style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#f5c400", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          ✏️ Modifica
                         </button>
-                        <div style={{ width:1, background:"var(--border)" }} />
+                        <div style={{ width:1, background:"#000" }} />
                         <button onClick={() => setDeletingExpense(exp)}
-                          style={{ flex:1, padding:"12px", background:"none", border:"none", color:"var(--red)", fontWeight:600, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
-                          <Icon name="trash" size={16} color="var(--red)" /> Elimina
+                          style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          🗑️ Elimina
                         </button>
                       </div>
                     ) : (
                       <div style={{ borderTop:"1px solid #0a0a0a" }}>
                         <button onClick={() => setViewingExpense(exp)}
-                          style={{ width:"100%", padding:"9px", background:"none", border:"none", color: exp.status==="approved" ? "var(--green)" : "var(--red)", fontWeight:600, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
-                          <Icon name="eye" size={16} color={exp.status==="approved" ? "var(--green)" : "var(--red)"} /> Visualizza dettagli
+                          style={{ width:"100%", padding:"9px", background:"none", border:"none", color: exp.status==="approved" ? "#22c55e" : "#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                          👁️ Visualizza dettagli
                         </button>
                       </div>
                     )}
@@ -825,16 +791,14 @@
 
           {/* Delete confirm */}
           {deletingExpense && (
-            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:24 }}>
-              <div style={{ background:"var(--surface)", borderRadius:24, padding:"28px 24px", width:"100%", maxWidth:360, border:"1px solid var(--border)", boxShadow:"0 24px 60px rgba(0,0,0,0.5)" }}>
-                <div style={{ width:56, height:56, background:"var(--red-soft)", borderRadius:16, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
-                  <Icon name="trash" size={26} color="var(--red)" />
-                </div>
-                <h3 style={{ color:"var(--text)", fontSize:20, fontWeight:700, textAlign:"center", margin:"0 0 8px" }}>Elimina spesa?</h3>
-                <p style={{ color:"var(--text2)", fontSize:15, textAlign:"center", margin:"0 0 24px", lineHeight:1.5 }}>"{deletingExpense.description}"<br/>{formatAmount(deletingExpense.amount, deletingExpense.currency || "EUR")}</p>
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
+              <div style={{ background:"#141414", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #2a2a2a" }}>
+                <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
+                <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Elimina spesa?</h3>
+                <p style={{ color:"#666666", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatAmount(deletingExpense.amount, deletingExpense.currency || "EUR")}</p>
                 <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:"14px", borderRadius:14, border:"1px solid var(--border2)", background:"none", color:"var(--text2)", fontWeight:600, fontSize:16, cursor:"pointer" }}>Annulla</button>
-                  <button onClick={() => { onDeleteExpense(deletingExpense.id); setDeletingExpense(null); }} style={{ flex:1, padding:"14px", borderRadius:14, border:"none", background:"var(--red)", color:"var(--text)", fontWeight:700, fontSize:16, cursor:"pointer" }}>Elimina</button>
+                  <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #2a2a2a", background:"none", color:"#999999", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                  <button onClick={() => { onDeleteExpense(deletingExpense.id); setDeletingExpense(null); }} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Elimina</button>
                 </div>
               </div>
             </div>
@@ -844,7 +808,7 @@
           {viewReceipt && (
             <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
               <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
-              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"var(--text)", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
             </div>
           )}
 
@@ -972,31 +936,27 @@
       ];
 
       return (
-        <div style={{ minHeight:"100vh", background:"var(--bg)", paddingBottom:60 }}>
+        <div style={{ minHeight:"100vh", background:"#000", paddingBottom:60 }}>
           {/* Header */}
-          <div style={{ background:"var(--bg)", borderBottom:"1px solid var(--border)", position:"sticky", top:0, zIndex:10 }}>
-            <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ background:"#000", borderBottom:"1px solid #1a1a1a", position:"sticky", top:0, zIndex:10 }}>
+            <div style={{ padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:36, height:36, background:"linear-gradient(135deg,#f5c400,#d4a800)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <Icon name="briefcase" size={18} color="#000" />
-                </div>
+                <div style={{ width:6, height:32, background:"#f5c400", borderRadius:3, flexShrink:0 }} />
                 <div>
-                  <div style={{ color:"var(--text)", fontWeight:800, fontSize:18, lineHeight:1.1 }}>SpesApp</div>
-                  <div style={{ color:"var(--yellow)", fontSize:13, fontWeight:600 }}>Admin Console</div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#fff", fontWeight:900, fontSize:18, letterSpacing:1, textTransform:"uppercase", lineHeight:1 }}>SpesApp</div>
+                  <div style={{ color:"#f5c400", fontSize:9, letterSpacing:2, textTransform:"uppercase", fontWeight:700 }}>Admin Console</div>
                 </div>
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <Avatar name={user.name} size={34} />
-                <button onClick={onLogout} style={{ background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text2)", padding:"7px 14px", borderRadius:10, cursor:"pointer", fontSize:14, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
-                  <Icon name="logout" size={15} color="var(--text2)" />Esci
-                </button>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <Avatar name={user.name} size={30} />
+                <button onClick={onLogout} style={{ background:"none", border:"1px solid #272727", color:"#666", padding:"5px 10px", borderRadius:4, cursor:"pointer", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>Esci</button>
               </div>
             </div>
-            <div style={{ display:"flex", gap:0, borderTop:"1px solid var(--border)", padding:"0 8px" }}>
+            <div style={{ display:"flex", gap:0, borderTop:"1px solid #1a1a1a" }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ padding:"12px 20px", border:"none", background:"none", color: activeTab===t.id ? "var(--yellow)" : "var(--text3)", fontWeight:700, fontSize:15, cursor:"pointer", borderBottom: activeTab===t.id ? "2px solid var(--yellow)" : "2px solid transparent", transition:"all 0.2s", display:"flex", alignItems:"center", gap:7 }}>
-                  <Icon name={t.id==="dashboard" ? "chart" : "list"} size={17} color={activeTab===t.id ? "var(--yellow)" : "var(--text3)"} /> {t.label}
+                  style={{ padding:"10px 18px", border:"none", background: activeTab===t.id ? "#111" : "none", color: activeTab===t.id ? "#f5c400" : "#555", fontWeight:700, fontSize:12, cursor:"pointer", borderBottom: activeTab===t.id ? "2px solid #f5c400" : "2px solid transparent", transition:"all 0.15s", letterSpacing:0.5, textTransform:"uppercase" }}>
+                  {t.icon} {t.label}
                 </button>
               ))}
             </div>
@@ -1006,60 +966,51 @@
             {activeTab==="dashboard" && (
               <>
                 {/* KPI strip */}
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12, marginBottom:20 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:8, marginBottom:16 }}>
                   {[
-                    { label:"Totale €", value:formatEur(totalAll), color:"var(--yellow)", bg:"var(--yellow-soft)", icon:"download" },
-                    { label:"Approvato €", value:formatEur(totalApproved), color:"var(--green)", bg:"var(--green-soft)", icon:"check" },
-                    ...(usdAll > 0 ? [{ label:"Totale $", value:formatAmount(usdAll,"USD"), color:"var(--yellow)", bg:"var(--yellow-soft)", icon:"star" }] : []),
-                    { label:"In attesa", value:`${pending.length} richieste`, color:"var(--amber)", bg:"var(--amber-soft)", icon:"clock" },
-                    { label:"Dipendenti attivi", value:byEmployee.length, color:"var(--text2)", bg:"var(--surface2)", icon:"users" },
+                    { label:"Totale €", value:formatEur(totalAll), color:"#f5c400", border:"#f5c400" },
+                    { label:"Approvato €", value:formatEur(totalApproved), color:"#22c55e", border:"#22c55e" },
+                    ...(usdAll > 0 ? [{ label:"Totale $", value:formatAmount(usdAll,"USD"), color:"#f5c400", border:"#f5c400" }] : []),
+                    { label:"In attesa", value:`${pending.length} richieste`, color:"#f59e0b", border:"#f59e0b" },
+                    { label:"Dipendenti attivi", value:byEmployee.length, color:"#aaa", border:"#333" },
                   ].map(k => (
-                    <div key={k.label} style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:18, padding:"16px 18px" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                        <div style={{ color:"var(--text3)", fontSize:14, fontWeight:500 }}>{k.label}</div>
-                        <div style={{ background:k.bg, borderRadius:10, padding:7, display:"flex" }}>
-                          <Icon name={k.icon} size={16} color={k.color} />
-                        </div>
-                      </div>
-                      <div style={{ color:k.color, fontSize:24, fontWeight:800 }}>{k.value}</div>
+                    <div key={k.label} style={{ background:"#111", border:`1px solid #1a1a1a`, borderTop:`2px solid ${k.border}`, borderRadius:"0 0 6px 6px", padding:"12px 14px" }}>
+                      <div style={{ color:"#555", fontSize:9, fontWeight:700, marginBottom:5, letterSpacing:1.5, textTransform:"uppercase" }}>{k.label}</div>
+                      <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:k.color, fontSize:22, fontWeight:900, letterSpacing:0.5 }}>{k.value}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* Charts */}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
-                  <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:18, padding:18 }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:"var(--text)", marginBottom:16, display:"flex", alignItems:"center", gap:8 }}>
-                      <Icon name="chart" size={16} color="var(--yellow)" /> Categorie
-                    </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                  <div style={{ background:"#111", border:"1px solid #1a1a1a", borderRadius:6, padding:16 }}>
+                    <div style={{ color:"#f5c400", fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>Per Categoria</div>
                     {byCategory.map(cat => {
                       const pct = totalAll>0 ? (cat.total/totalAll)*100 : 0;
                       return (
-                        <div key={cat.id} style={{ marginBottom:12 }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
-                            <span style={{ color:"var(--text2)", fontSize:14 }}>{cat.icon} {cat.label}</span>
-                            <span style={{ color:"var(--text)", fontWeight:700, fontSize:14 }}>{formatEur(cat.total)}</span>
+                        <div key={cat.id} style={{ marginBottom:10 }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                            <span style={{ color:"#aaa", fontSize:11 }}>{cat.icon} {cat.label}</span>
+                            <span style={{ color:"#fff", fontWeight:700, fontSize:11 }}>{formatEur(cat.total)}</span>
                           </div>
-                          <div style={{ height:5, borderRadius:4, background:"var(--surface2)" }}>
-                            <div style={{ height:"100%", width:`${pct}%`, background:"#f5c400", borderRadius:4, transition:"width 0.8s" }} />
+                          <div style={{ height:4, borderRadius:0, background:"#1a1a1a" }}>
+                            <div style={{ height:"100%", width:`${pct}%`, background:"#f5c400", transition:"width 0.8s" }} />
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:18, padding:18 }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:"var(--text)", marginBottom:16, display:"flex", alignItems:"center", gap:8 }}>
-                      <Icon name="users" size={16} color="var(--yellow)" /> Dipendenti
-                    </div>
+                  <div style={{ background:"#111", border:"1px solid #1a1a1a", borderRadius:6, padding:16 }}>
+                    <div style={{ color:"#f5c400", fontSize:9, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>Per Dipendente</div>
                     {byEmployee.map(emp => (
-                      <div key={emp.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                        <Avatar name={emp.name} size={32} />
+                      <div key={emp.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                        <Avatar name={emp.name} size={28} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ color:"var(--text)", fontSize:14, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
-                          <div style={{ color:"var(--text3)", fontSize:13 }}>{emp.count} spese</div>
+                          <div style={{ color:"#fff", fontSize:11, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
+                          <div style={{ color:"#444", fontSize:10 }}>{emp.count} spese</div>
                         </div>
-                        <div style={{ color:"var(--yellow)", fontWeight:800, fontSize:15 }}>
-                          {formatEur(emp.total)}{emp.totalUsd > 0 && <span style={{color:"var(--text3)", fontSize:13, marginLeft:3}}>+{formatAmount(emp.totalUsd,"USD")}</span>}
+                        <div style={{ fontFamily:"'Barlow Condensed',sans-serif", color:"#f5c400", fontWeight:900, fontSize:14 }}>
+                          {formatEur(emp.total)}{emp.totalUsd > 0 && <span style={{color:"#666", fontSize:10, marginLeft:3}}>+{formatAmount(emp.totalUsd,"USD")}</span>}
                         </div>
                       </div>
                     ))}
@@ -1067,9 +1018,9 @@
                 </div>
 
                 {pending.length>0 && (
-                  <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderLeft:"3px solid #f59e0b", borderRadius:"0 6px 6px 0", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                    <div style={{ color:"var(--amber)", fontWeight:700, fontSize:15, letterSpacing:0.3 }}>⏳ {pending.length} spese in attesa di approvazione</div>
-                    <button onClick={() => setActiveTab("expenses")} style={{ background:"#f5c400", border:"none", color:"#000", fontWeight:800, padding:"7px 14px", borderRadius:10, cursor:"pointer", fontSize:15, letterSpacing:0.5, textTransform:"uppercase" }}>Gestisci →</button>
+                  <div style={{ background:"#111", border:"1px solid #1a1a1a", borderLeft:"3px solid #f59e0b", borderRadius:"0 6px 6px 0", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <div style={{ color:"#f59e0b", fontWeight:700, fontSize:13, letterSpacing:0.3 }}>⏳ {pending.length} spese in attesa di approvazione</div>
+                    <button onClick={() => setActiveTab("expenses")} style={{ background:"#f5c400", border:"none", color:"#000", fontWeight:800, padding:"7px 14px", borderRadius:4, cursor:"pointer", fontSize:11, letterSpacing:0.5, textTransform:"uppercase" }}>Gestisci →</button>
                   </div>
                 )}
               </>
@@ -1081,43 +1032,43 @@
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {["all","pending","approved","rejected"].map(s => (
                       <button key={s} onClick={() => setFilterStatus(s)}
-                        style={{ padding:"6px 12px", borderRadius:20, border:"1px solid", borderColor: filterStatus===s ? "var(--yellow)" : "#2a2a2a", background: filterStatus===s ? "rgba(245,196,0,0.15)" : "none", color: filterStatus===s ? "var(--yellow)" : "#666666", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+                        style={{ padding:"6px 12px", borderRadius:20, border:"1px solid", borderColor: filterStatus===s ? "#f5c400" : "#2a2a2a", background: filterStatus===s ? "rgba(245,196,0,0.15)" : "none", color: filterStatus===s ? "#f5c400" : "#666666", fontSize:12, fontWeight:600, cursor:"pointer" }}>
                         {s==="all" ? "Tutte" : STATUS_CONFIG[s]?.label}
-                        {s==="pending" && pending.length>0 && <span style={{ marginLeft:3, background:"var(--amber)", color:"#000", fontSize:11, fontWeight:800, padding:"1px 4px", borderRadius:14 }}>{pending.length}</span>}
+                        {s==="pending" && pending.length>0 && <span style={{ marginLeft:3, background:"#f59e0b", color:"#000", fontSize:9, fontWeight:800, padding:"1px 4px", borderRadius:9 }}>{pending.length}</span>}
                       </button>
                     ))}
                   </div>
-                  <button onClick={exportExcel} style={{ padding:"7px 12px", borderRadius:14, border:"1px solid #f5c400", background:"rgba(245,196,0,0.08)", color:"var(--yellow)", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>📊 Excel</button>
+                  <button onClick={exportExcel} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #f5c400", background:"rgba(245,196,0,0.08)", color:"#f5c400", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>📊 Excel</button>
                 </div>
 
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {filtered.map(exp => {
                     const cat = getCatInfo(exp.category);
                     return (
-                      <div key={exp.id} style={{ background:"var(--surface)", borderRadius:13, padding:"13px 14px", border: exp.status==="pending" ? "1px solid rgba(245,158,11,0.3)" : "1px solid #2a2a2a", display:"flex", alignItems:"center", gap:10 }}>
+                      <div key={exp.id} style={{ background:"#141414", borderRadius:13, padding:"13px 14px", border: exp.status==="pending" ? "1px solid rgba(245,158,11,0.3)" : "1px solid #2a2a2a", display:"flex", alignItems:"center", gap:10 }}>
                         {exp.receiptFull || exp.receiptPreview ? (
                           <img src={exp.receiptFull || exp.receiptPreview} alt="" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
-                            style={{ width:40, height:40, borderRadius:14, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
+                            style={{ width:40, height:40, borderRadius:9, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
                         ) : (
-                          <div style={{ width:40, height:40, borderRadius:14, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, flexShrink:0 }}>{cat.icon}</div>
+                          <div style={{ width:40, height:40, borderRadius:9, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, flexShrink:0 }}>{cat.icon}</div>
                         )}
                         <Avatar name={exp.userName} size={30} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ color:"var(--text)", fontWeight:600, fontSize:15 }}>{exp.description}</div>
-                          <div style={{ color:"var(--text3)", fontSize:15, marginTop:1 }}>
+                          <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:13 }}>{exp.description}</div>
+                          <div style={{ color:"#666666", fontSize:11, marginTop:1 }}>
                             {exp.userName} · {exp.date} · {cat.label}
-                            {!exp.receipt && <span style={{ color:"var(--red)" }}> · ⚠️ no scontrino</span>}
+                            {!exp.receipt && <span style={{ color:"#ef4444" }}> · ⚠️ no scontrino</span>}
                           </div>
-                          {exp.sharedWith && <div style={{ color:"var(--text2)", fontSize:15 }}>👥 {exp.sharedWith}</div>}
-                          {exp.note && <div style={{ color:"var(--text2)", fontSize:15 }}>💬 {exp.note}</div>}
+                          {exp.sharedWith && <div style={{ color:"#999999", fontSize:11 }}>👥 {exp.sharedWith}</div>}
+                          {exp.note && <div style={{ color:"#999999", fontSize:11 }}>💬 {exp.note}</div>}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ color:"var(--text)", fontWeight:700, fontSize:14, marginBottom:3 }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
+                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14, marginBottom:3 }}>{formatAmount(exp.amount, exp.currency || "EUR")}</div>
                           <StatusBadge status={exp.status} />
                         </div>
                         {exp.status==="pending" && (
                           <button onClick={() => { setSelectedExpense(exp); setNoteInput(""); }}
-                            style={{ marginLeft:4, padding:"6px 11px", borderRadius:12, border:"1px solid #f5c400", background:"rgba(245,196,0,0.1)", color:"var(--yellow)", fontWeight:600, fontSize:14, cursor:"pointer", flexShrink:0 }}>
+                            style={{ marginLeft:4, padding:"6px 11px", borderRadius:7, border:"1px solid #f5c400", background:"rgba(245,196,0,0.1)", color:"#f5c400", fontWeight:600, fontSize:12, cursor:"pointer", flexShrink:0 }}>
                             Esamina
                           </button>
                         )}
@@ -1132,31 +1083,31 @@
           {/* Approval modal */}
           {selectedExpense && (
             <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && setSelectedExpense(null)}>
-              <div style={{ background:"var(--surface)", borderRadius:"22px 22px 0 0", padding:"20px 20px 32px", width:"100%", maxWidth:480, border:"1px solid var(--border)", maxHeight:"80vh", overflowY:"auto" }}>
+              <div style={{ background:"#141414", borderRadius:"22px 22px 0 0", padding:"20px 20px 32px", width:"100%", maxWidth:480, border:"1px solid #2a2a2a", maxHeight:"80vh", overflowY:"auto" }}>
                 <div style={{ width:36, height:4, borderRadius:2, background:"#2a2a2a", margin:"0 auto 16px" }} />
-                <h2 style={{ color:"var(--text)", fontSize:16, fontWeight:800, margin:"0 0 16px" }}>Esamina Spesa</h2>
-                <div style={{ background:"var(--bg)", borderRadius:10, padding:14, marginBottom:12 }}>
-                  <div style={{ color:"var(--text3)", fontSize:15, marginBottom:3 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label}</div>
-                  <div style={{ color:"var(--text)", fontWeight:600, marginBottom:3 }}>{selectedExpense.description}</div>
-                  <div style={{ color:"var(--text)", fontSize:20, fontWeight:800 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency || "EUR")}</div>
-                  <div style={{ color:"var(--text3)", fontSize:15, marginTop:4 }}>👤 {selectedExpense.userName} {selectedExpense.receipt ? "· 📎 Scontrino allegato" : "· ⚠️ Nessun scontrino"}</div>
-              {selectedExpense.sharedWith && <div style={{ color:"var(--text2)", fontSize:15, marginTop:3 }}>👥 Con: {selectedExpense.sharedWith}</div>}
+                <h2 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:"0 0 16px" }}>Esamina Spesa</h2>
+                <div style={{ background:"#000", borderRadius:10, padding:14, marginBottom:12 }}>
+                  <div style={{ color:"#666666", fontSize:11, marginBottom:3 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label}</div>
+                  <div style={{ color:"#f1f5f9", fontWeight:600, marginBottom:3 }}>{selectedExpense.description}</div>
+                  <div style={{ color:"#f1f5f9", fontSize:20, fontWeight:800 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency || "EUR")}</div>
+                  <div style={{ color:"#666666", fontSize:11, marginTop:4 }}>👤 {selectedExpense.userName} {selectedExpense.receipt ? "· 📎 Scontrino allegato" : "· ⚠️ Nessun scontrino"}</div>
+              {selectedExpense.sharedWith && <div style={{ color:"#999999", fontSize:11, marginTop:3 }}>👥 Con: {selectedExpense.sharedWith}</div>}
                 </div>
                 {(selectedExpense.receiptFull || selectedExpense.receiptPreview) && (
-                  <div style={{ marginBottom:12, borderRadius:10, overflow:"hidden", border:"1px solid var(--border)", cursor:"pointer" }} onClick={() => setViewReceipt(selectedExpense.receiptFull || selectedExpense.receiptPreview)}>
+                  <div style={{ marginBottom:12, borderRadius:10, overflow:"hidden", border:"1px solid #2a2a2a", cursor:"pointer" }} onClick={() => setViewReceipt(selectedExpense.receiptFull || selectedExpense.receiptPreview)}>
                     <img src={selectedExpense.receiptFull || selectedExpense.receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:180, objectFit:"cover", display:"block" }} />
-                    <div style={{ background:"var(--bg)", padding:"6px 12px", color:"var(--text3)", fontSize:15 }}>📷 Tocca per ingrandire</div>
+                    <div style={{ background:"#000", padding:"6px 12px", color:"#666666", fontSize:11 }}>📷 Tocca per ingrandire</div>
                   </div>
                 )}
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ color:"var(--text3)", fontSize:14, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>NOTE (opzionale)</label>
+                  <label style={{ color:"#666666", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>NOTE (opzionale)</label>
                   <input value={noteInput} onChange={e => setNoteInput(e.target.value)} placeholder="Es: Manca scontrino originale..."
-                    style={{ width:"100%", padding:"10px 12px", borderRadius:14, border:"1px solid var(--border)", background:"var(--bg)", color:"var(--text)", fontSize:14 }} />
+                    style={{ width:"100%", padding:"10px 12px", borderRadius:9, border:"1px solid #2a2a2a", background:"#000", color:"#f1f5f9", fontSize:14 }} />
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => setSelectedExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid var(--border)", background:"none", color:"var(--text2)", fontWeight:600, cursor:"pointer", fontSize:15 }}>Annulla</button>
-                  <button onClick={() => handleAction(selectedExpense.id, "rejected")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"rgba(239,68,68,0.15)", color:"var(--red)", fontWeight:700, cursor:"pointer", fontSize:15 }}>✕ Rifiuta</button>
-                  <button onClick={() => handleAction(selectedExpense.id, "approved")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"linear-gradient(135deg,#10b981,#059669)", color:"var(--text)", fontWeight:700, cursor:"pointer", fontSize:15 }}>✓ Approva</button>
+                  <button onClick={() => setSelectedExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #2a2a2a", background:"none", color:"#999999", fontWeight:600, cursor:"pointer", fontSize:13 }}>Annulla</button>
+                  <button onClick={() => handleAction(selectedExpense.id, "rejected")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"rgba(239,68,68,0.15)", color:"#ef4444", fontWeight:700, cursor:"pointer", fontSize:13 }}>✕ Rifiuta</button>
+                  <button onClick={() => handleAction(selectedExpense.id, "approved")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13 }}>✓ Approva</button>
                 </div>
               </div>
             </div>
@@ -1166,7 +1117,7 @@
           {viewReceipt && (
             <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
               <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
-              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"var(--text)", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
             </div>
           )}
 
@@ -1282,18 +1233,18 @@
       if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
 
       if (loading) return (
-        <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+        <div style={{ minHeight:"100vh", background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
           <div style={{ width:24, height:24, border:"3px solid #f5c400", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-          <div style={{ color:"var(--text3)", fontSize:14, letterSpacing:2, textTransform:"uppercase" }}>Caricamento dati...</div>
+          <div style={{ color:"#555", fontSize:12, letterSpacing:2, textTransform:"uppercase" }}>Caricamento dati...</div>
         </div>
       );
 
       if (dbError) return (
-        <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
+        <div style={{ minHeight:"100vh", background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
           <div style={{ fontSize:32 }}>⚠️</div>
-          <div style={{ color:"var(--red)", fontWeight:700, textAlign:"center" }}>{dbError}</div>
+          <div style={{ color:"#ef4444", fontWeight:700, textAlign:"center" }}>{dbError}</div>
           <button onClick={() => { setDbError(""); setLoading(true); loadExpensesFromCloud().then(r => { setExpenses(r); setLoading(false); }).catch(() => setDbError("Errore connessione database. Riprova.")); }}
-            style={{ padding:"10px 24px", background:"#f5c400", border:"none", borderRadius:12, fontWeight:800, cursor:"pointer", fontSize:15 }}>
+            style={{ padding:"10px 24px", background:"#f5c400", border:"none", borderRadius:6, fontWeight:800, cursor:"pointer", fontSize:13 }}>
             Riprova
           </button>
         </div>
