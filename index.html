@@ -100,6 +100,10 @@
       { id: 5, name: "Andrea Alberici", role: "employee", email: "a.alberici@alberici.net", password: "Andrea2026!" },
     ];
 
+    // ── SUPABASE CONFIG ───────────────────────────────────────────────────
+    const SUPABASE_URL = "https://ljtwipkannwwfnvhqbxd.supabase.co";
+    // Le operazioni DB passano tutte per /api/db (la key rimane sul server)
+
     const MOCK_EXPENSES = [
       { id: 1, userId: 2, userName: "Marco Ferretti", date: "2026-03-28", amount: 142.50, category: "travel",    description: "Treno Bologna-Milano A/R",        status: "pending",  receipt: true,  note: "",              receiptPreview: null },
       { id: 2, userId: 3, userName: "Giulia Morandi", date: "2026-03-27", amount: 87.00,  category: "meals",     description: "Pranzo con cliente Bonfiglioli",  status: "approved", receipt: true,  note: "Approvato",     receiptPreview: null },
@@ -117,64 +121,36 @@
       rejected: { label: "Rifiutata", color: "#ef4444", bg: "rgba(239,68,68,0.1)", dot: "#ef4444" },
     };
 
-    // ─── Persistence ─────────────────────────────────────────────────────────
-    // Strategia: localStorage salva solo metadati (senza immagini).
-    // Le immagini vengono salvate separatamente in localStorage con chiave per ID,
-    // compresse. In questo modo approvare/rifiutare non cancella mai lo scontrino.
+    // ─── Persistence — Supabase Cloud ────────────────────────────────────────
 
     const IMG_PREFIX = "spesapp_img_";
+    function saveImageLocal(id, dataUrl) { try { localStorage.setItem(IMG_PREFIX + id, dataUrl); } catch {} }
+    function loadImageLocal(id) { try { return localStorage.getItem(IMG_PREFIX + id) || null; } catch { return null; } }
+    function deleteImageLocal(id) { try { localStorage.removeItem(IMG_PREFIX + id); } catch {} }
 
-    function saveImage(id, dataUrl) {
-      if (!dataUrl) return;
-      try { localStorage.setItem(IMG_PREFIX + id, dataUrl); } catch {}
+    async function dbFetch(action, payload = {}) {
+      const res = await fetch("/api/db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...payload })
+      });
+      if (!res.ok) throw new Error(`DB error ${res.status}`);
+      return res.json();
     }
 
-    function loadImage(id) {
-      try { return localStorage.getItem(IMG_PREFIX + id) || null; } catch { return null; }
-    }
-
-    function deleteImage(id) {
-      try { localStorage.removeItem(IMG_PREFIX + id); } catch {}
-    }
-
-    function loadExpenses() {
-      try {
-        const raw = localStorage.getItem("spesapp_expenses");
-        if (!raw) return MOCK_EXPENSES;
-        const parsed = JSON.parse(raw);
-        // Migrazione: aggiorna vecchi nomi utente rinominati
-        return parsed.map(e => {
-          if (e.userName === "Sara Bianchi") e = { ...e, userName: "Andrea Alberici" };
-          // Ricarica immagine separata se disponibile
-          const img = loadImage(e.id);
-          return img ? { ...e, receiptFull: img, receiptPreview: img } : e;
-        });
-      } catch { return MOCK_EXPENSES; }
-    }
-
-    function saveExpenses(expenses) {
-      try {
-        // Salva immagini separatamente, metadati senza immagini inline
-        const toStore = expenses.map(e => {
-          if (e.receiptFull || e.receiptPreview) {
-            saveImage(e.id, e.receiptFull || e.receiptPreview);
-          }
-          return { ...e, receiptPreview: null, receiptFull: null };
-        });
-        localStorage.setItem("spesapp_expenses", JSON.stringify(toStore));
-      } catch(err) {
-        try {
-          const minimal = expenses.map(e => ({ ...e, receiptPreview: null, receiptFull: null }));
-          localStorage.setItem("spesapp_expenses", JSON.stringify(minimal));
-        } catch {}
-      }
+    async function loadExpensesFromCloud() {
+      const res = await fetch("/api/db");
+      if (!res.ok) throw new Error("Load failed");
+      const rows = await res.json();
+      // Ricarica immagini locali
+      return rows.map(e => {
+        const img = loadImageLocal(e.id);
+        return img ? { ...e, receiptFull: img, receiptPreview: img } : e;
+      });
     }
 
     function loadSession() {
-      try {
-        const raw = sessionStorage.getItem("spesapp_user");
-        return raw ? JSON.parse(raw) : null;
-      } catch { return null; }
+      try { const r = sessionStorage.getItem("spesapp_user"); return r ? JSON.parse(r) : null; } catch { return null; }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -962,11 +938,23 @@
       );
     }
 
-    // ─── App Root ─────────────────────────────────────────────────────────────
+    // ─── App Root — Supabase Cloud ────────────────────────────────────────────
 
     function App() {
       const [currentUser, setCurrentUser] = useState(() => loadSession());
-      const [expenses, setExpenses] = useState(() => loadExpenses());
+      const [expenses, setExpenses] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [dbError, setDbError] = useState("");
+
+      // Load expenses from cloud on mount and after login
+      useEffect(() => {
+        if (!currentUser) { setLoading(false); return; }
+        setLoading(true);
+        setDbError("");
+        loadExpensesFromCloud()
+          .then(rows => { setExpenses(rows); setLoading(false); })
+          .catch(e => { setDbError("Errore connessione database. Riprova."); setLoading(false); });
+      }, [currentUser]);
 
       const handleLogin = user => {
         sessionStorage.setItem("spesapp_user", JSON.stringify(user));
@@ -976,42 +964,66 @@
       const handleLogout = () => {
         sessionStorage.removeItem("spesapp_user");
         setCurrentUser(null);
+        setExpenses([]);
       };
 
-      const handleAddExpense = useCallback(exp => {
-        setExpenses(prev => {
-          const next = [exp, ...prev];
-          saveExpenses(next);
-          return next;
-        });
+      const handleAddExpense = useCallback(async exp => {
+        try {
+          const saved = await dbFetch("add", { expense: exp });
+          if (exp.receiptFull || exp.receiptPreview) saveImageLocal(saved.id, exp.receiptFull || exp.receiptPreview);
+          const img = loadImageLocal(saved.id);
+          const withImg = img ? { ...saved, receiptFull: img, receiptPreview: img } : saved;
+          setExpenses(prev => [withImg, ...prev]);
+        } catch(e) { alert("Errore salvataggio: " + e.message); }
       }, []);
 
-      const handleUpdateStatus = useCallback((id, status, note) => {
-        setExpenses(prev => {
-          const next = prev.map(e => e.id===id ? { ...e, status, note } : e);
-          saveExpenses(next);
-          return next;
-        });
+      const handleUpdateStatus = useCallback(async (id, status, note) => {
+        try {
+          const updated = await dbFetch("updateStatus", { id, status, note });
+          const img = loadImageLocal(id);
+          const withImg = img ? { ...updated, receiptFull: img, receiptPreview: img } : updated;
+          setExpenses(prev => prev.map(e => e.id===id ? withImg : e));
+        } catch(e) { alert("Errore aggiornamento: " + e.message); }
       }, []);
 
-      const handleEditExpense = useCallback(exp => {
-        setExpenses(prev => {
-          const next = prev.map(e => e.id===exp.id ? exp : e);
-          saveExpenses(next);
-          return next;
-        });
+      const handleEditExpense = useCallback(async exp => {
+        try {
+          const updated = await dbFetch("edit", { expense: exp });
+          if (exp.receiptFull || exp.receiptPreview) saveImageLocal(exp.id, exp.receiptFull || exp.receiptPreview);
+          const img = loadImageLocal(exp.id);
+          const withImg = img ? { ...updated, receiptFull: img, receiptPreview: img } : updated;
+          setExpenses(prev => prev.map(e => e.id===exp.id ? withImg : e));
+        } catch(e) { alert("Errore modifica: " + e.message); }
       }, []);
 
-      const handleDeleteExpense = useCallback(id => {
-        deleteImage(id);
-        setExpenses(prev => {
-          const next = prev.filter(e => e.id !== id);
-          saveExpenses(next);
-          return next;
-        });
+      const handleDeleteExpense = useCallback(async id => {
+        try {
+          await dbFetch("delete", { id });
+          deleteImageLocal(id);
+          setExpenses(prev => prev.filter(e => e.id !== id));
+        } catch(e) { alert("Errore eliminazione: " + e.message); }
       }, []);
 
       if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
+
+      if (loading) return (
+        <div style={{ minHeight:"100vh", background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+          <div style={{ width:24, height:24, border:"3px solid #f5c400", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+          <div style={{ color:"#555", fontSize:12, letterSpacing:2, textTransform:"uppercase" }}>Caricamento dati...</div>
+        </div>
+      );
+
+      if (dbError) return (
+        <div style={{ minHeight:"100vh", background:"#000", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
+          <div style={{ fontSize:32 }}>⚠️</div>
+          <div style={{ color:"#ef4444", fontWeight:700, textAlign:"center" }}>{dbError}</div>
+          <button onClick={() => { setDbError(""); setLoading(true); loadExpensesFromCloud().then(r => { setExpenses(r); setLoading(false); }).catch(() => setDbError("Errore connessione database. Riprova.")); }}
+            style={{ padding:"10px 24px", background:"#f5c400", border:"none", borderRadius:6, fontWeight:800, cursor:"pointer", fontSize:13 }}>
+            Riprova
+          </button>
+        </div>
+      );
+
       if (currentUser.role==="admin") return <AdminView user={currentUser} expenses={expenses} onUpdateStatus={handleUpdateStatus} onLogout={handleLogout} />;
       return <EmployeeView user={currentUser} expenses={expenses} onAddExpense={handleAddExpense} onEditExpense={handleEditExpense} onDeleteExpense={handleDeleteExpense} onLogout={handleLogout} />;
     }
