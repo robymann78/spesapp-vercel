@@ -124,9 +124,40 @@
     // ─── Persistence — Supabase Cloud ────────────────────────────────────────
 
     const IMG_PREFIX = "spesapp_img_";
+    // Local cache for session preview (immagine mostrata subito senza attendere il cloud)
     function saveImageLocal(id, dataUrl) { try { localStorage.setItem(IMG_PREFIX + id, dataUrl); } catch {} }
     function loadImageLocal(id) { try { return localStorage.getItem(IMG_PREFIX + id) || null; } catch { return null; } }
     function deleteImageLocal(id) { try { localStorage.removeItem(IMG_PREFIX + id); } catch {} }
+
+    async function uploadImageToCloud(expenseId, base64Image) {
+      try {
+        const mediaType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
+        const base64Data = base64Image.split(",")[1];
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64Data, mediaType, expenseId: String(expenseId) })
+        });
+        if (!res.ok) return null;
+        const { url } = await res.json();
+        return url || null;
+      } catch { return null; }
+    }
+
+    async function deleteImageFromCloud(expenseId) {
+      try {
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: String(expenseId) + ".jpg" })
+        });
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: String(expenseId) + ".png" })
+        });
+      } catch {}
+    }
 
     async function dbFetch(action, payload = {}) {
       const res = await fetch("/api/db", {
@@ -142,8 +173,9 @@
       const res = await fetch("/api/db");
       if (!res.ok) throw new Error("Load failed");
       const rows = await res.json();
-      // Ricarica immagini locali
+      // Usa URL cloud se disponibile, altrimenti fallback a cache locale
       return rows.map(e => {
+        if (e.receiptUrl) return { ...e, receiptFull: e.receiptUrl, receiptPreview: e.receiptUrl };
         const img = loadImageLocal(e.id);
         return img ? { ...e, receiptFull: img, receiptPreview: img } : e;
       });
@@ -969,11 +1001,26 @@
 
       const handleAddExpense = useCallback(async exp => {
         try {
+          // Salva prima i metadati, poi upload foto in background
           const saved = await dbFetch("add", { expense: exp });
-          if (exp.receiptFull || exp.receiptPreview) saveImageLocal(saved.id, exp.receiptFull || exp.receiptPreview);
-          const img = loadImageLocal(saved.id);
-          const withImg = img ? { ...saved, receiptFull: img, receiptPreview: img } : saved;
-          setExpenses(prev => [withImg, ...prev]);
+          const imageData = exp.receiptFull || exp.receiptPreview;
+
+          // Mostra subito con anteprima locale
+          saveImageLocal(saved.id, imageData);
+          setExpenses(prev => [{ ...saved, receiptFull: imageData, receiptPreview: imageData }, ...prev]);
+
+          // Upload foto su Supabase Storage in background
+          if (imageData) {
+            const cloudUrl = await uploadImageToCloud(saved.id, imageData);
+            if (cloudUrl) {
+              // Aggiorna DB con URL cloud
+              await dbFetch("updateReceiptUrl", { id: saved.id, url: cloudUrl });
+              setExpenses(prev => prev.map(e => e.id === saved.id
+                ? { ...e, receiptFull: cloudUrl, receiptPreview: cloudUrl }
+                : e
+              ));
+            }
+          }
         } catch(e) { alert("Errore salvataggio: " + e.message); }
       }, []);
 
@@ -1000,6 +1047,7 @@
         try {
           await dbFetch("delete", { id });
           deleteImageLocal(id);
+          deleteImageFromCloud(id); // async, non bloccante
           setExpenses(prev => prev.filter(e => e.id !== id));
         } catch(e) { alert("Errore eliminazione: " + e.message); }
       }, []);
