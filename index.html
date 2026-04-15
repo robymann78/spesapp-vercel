@@ -1001,19 +1001,20 @@
 
       const handleAddExpense = useCallback(async exp => {
         try {
-          // Salva prima i metadati, poi upload foto in background
-          const saved = await dbFetch("add", { expense: exp });
+          // Rimuovi immagini dall'oggetto prima di inviare al DB (troppo grandi)
           const imageData = exp.receiptFull || exp.receiptPreview;
+          const expenseForDb = { ...exp, receiptPreview: null, receiptFull: null };
+
+          const saved = await dbFetch("add", { expense: expenseForDb });
 
           // Mostra subito con anteprima locale
-          saveImageLocal(saved.id, imageData);
+          if (imageData) saveImageLocal(saved.id, imageData);
           setExpenses(prev => [{ ...saved, receiptFull: imageData, receiptPreview: imageData }, ...prev]);
 
           // Upload foto su Supabase Storage in background
           if (imageData) {
             const cloudUrl = await uploadImageToCloud(saved.id, imageData);
             if (cloudUrl) {
-              // Aggiorna DB con URL cloud
               await dbFetch("updateReceiptUrl", { id: saved.id, url: cloudUrl });
               setExpenses(prev => prev.map(e => e.id === saved.id
                 ? { ...e, receiptFull: cloudUrl, receiptPreview: cloudUrl }
@@ -1027,19 +1028,38 @@
       const handleUpdateStatus = useCallback(async (id, status, note) => {
         try {
           const updated = await dbFetch("updateStatus", { id, status, note });
-          const img = loadImageLocal(id);
-          const withImg = img ? { ...updated, receiptFull: img, receiptPreview: img } : updated;
+          // Recupera immagine: prima da URL cloud, poi da cache locale
+          const cloudUrl = updated.receiptUrl;
+          const localImg = loadImageLocal(id);
+          const imgSrc = cloudUrl || localImg;
+          const withImg = imgSrc ? { ...updated, receiptFull: imgSrc, receiptPreview: imgSrc } : updated;
           setExpenses(prev => prev.map(e => e.id===id ? withImg : e));
         } catch(e) { alert("Errore aggiornamento: " + e.message); }
       }, []);
 
       const handleEditExpense = useCallback(async exp => {
         try {
-          const updated = await dbFetch("edit", { expense: exp });
-          if (exp.receiptFull || exp.receiptPreview) saveImageLocal(exp.id, exp.receiptFull || exp.receiptPreview);
-          const img = loadImageLocal(exp.id);
-          const withImg = img ? { ...updated, receiptFull: img, receiptPreview: img } : updated;
+          const imageData = exp.receiptFull || exp.receiptPreview;
+          const expenseForDb = { ...exp, receiptPreview: null, receiptFull: null };
+
+          const updated = await dbFetch("edit", { expense: expenseForDb });
+
+          // Aggiorna cache locale
+          if (imageData) saveImageLocal(exp.id, imageData);
+          const withImg = imageData ? { ...updated, receiptFull: imageData, receiptPreview: imageData } : updated;
           setExpenses(prev => prev.map(e => e.id===exp.id ? withImg : e));
+
+          // Upload nuova foto se cambiata e non è già un URL cloud
+          if (imageData && !imageData.startsWith("http")) {
+            const cloudUrl = await uploadImageToCloud(exp.id, imageData);
+            if (cloudUrl) {
+              await dbFetch("updateReceiptUrl", { id: exp.id, url: cloudUrl });
+              setExpenses(prev => prev.map(e => e.id===exp.id
+                ? { ...e, receiptFull: cloudUrl, receiptPreview: cloudUrl }
+                : e
+              ));
+            }
+          }
         } catch(e) { alert("Errore modifica: " + e.message); }
       }, []);
 
