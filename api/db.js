@@ -8,7 +8,7 @@ async function supabase(method, path, body) {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
       "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": method === "POST" ? "return=representation" : "return=representation",
+      "Prefer": "return=representation",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -17,45 +17,9 @@ async function supabase(method, path, body) {
   return text ? JSON.parse(text) : null;
 }
 
-function toDb(exp) {
-  return {
-    user_id: exp.userId,
-    user_name: exp.userName,
-    date: exp.date,
-    amount: exp.amount,
-    currency: exp.currency || "EUR",
-    category: exp.category,
-    description: exp.description,
-    shared_with: exp.sharedWith || null,
-    status: exp.status || "pending",
-    note: exp.note || "",
-    receipt: exp.receipt || false,
-  };
-}
-
-function fromDb(row) {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    userName: row.user_name,
-    date: row.date,
-    amount: parseFloat(row.amount),
-    currency: row.currency || "EUR",
-    category: row.category,
-    description: row.description,
-    sharedWith: row.shared_with || "",
-    status: row.status,
-    note: row.note || "",
-    receipt: row.receipt || false,
-    receiptUrl: row.receipt_url || null,
-    receiptPreview: null,
-    receiptFull: null,
-  };
-}
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
@@ -64,38 +28,51 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, expense, id, status, note } = req.body || {};
-
-    // GET all expenses
-    if (req.method === "GET") {
-      const rows = await supabase("GET", "expenses?select=*&order=date.desc,created_at.desc");
-      return res.status(200).json(rows.map(fromDb));
-    }
+    const body = req.body || {};
+    const { action, expense, id, fields } = body;
 
     switch (action) {
-      case "add": {
-        const rows = await supabase("POST", "expenses", toDb(expense));
-        return res.status(200).json(fromDb(rows[0]));
+
+      case "list": {
+        const rows = await supabase("GET", "expenses?select=*&order=date.desc,created_at.desc");
+        return res.status(200).json(rows || []);
       }
-      case "edit": {
-        const rows = await supabase("PATCH", `expenses?id=eq.${expense.id}`, toDb(expense));
-        return res.status(200).json(fromDb(rows[0]));
+
+      case "insert": {
+        const exp = expense;
+        const payload = {
+          id: exp.id,
+          user_id: exp.user_id,
+          user_name: exp.user_name,
+          date: exp.date,
+          amount: exp.amount,
+          currency: exp.currency || "EUR",
+          category: exp.category,
+          description: exp.description,
+          shared_with: exp.shared_with || null,
+          status: exp.status || "pending",
+          note: exp.note || "",
+          receipt: exp.receipt || false,
+          receipt_url: exp.receipt_url || null,
+        };
+        const rows = await supabase("POST", "expenses", payload);
+        return res.status(200).json((rows && rows[0]) || payload);
       }
-      case "updateStatus": {
-        const rows = await supabase("PATCH", `expenses?id=eq.${id}`, { status, note });
-        return res.status(200).json(fromDb(rows[0]));
+
+      case "update": {
+        if (!id) return res.status(400).json({ error: "Missing id" });
+        const rows = await supabase("PATCH", `expenses?id=eq.${id}`, fields);
+        return res.status(200).json((rows && rows[0]) || { ok: true });
       }
-      case "updateReceiptUrl": {
-        const { url } = req.body;
-        const rows = await supabase("PATCH", `expenses?id=eq.${id}`, { receipt_url: url, receipt: true });
-        return res.status(200).json(fromDb(rows[0]));
-      }
+
       case "delete": {
+        if (!id) return res.status(400).json({ error: "Missing id" });
         await supabase("DELETE", `expenses?id=eq.${id}`);
         return res.status(200).json({ ok: true });
       }
+
       default:
-        return res.status(400).json({ error: "Unknown action" });
+        return res.status(400).json({ error: `Unknown action: ${action}` });
     }
   } catch (e) {
     return res.status(500).json({ error: e.message });
