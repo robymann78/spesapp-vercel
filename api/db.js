@@ -41,7 +41,6 @@ export default async function handler(req, res) {
       case "insert": {
         const exp = expense;
         const payload = {
-          id: exp.id,
           user_id: exp.user_id,
           user_name: exp.user_name,
           date: exp.date,
@@ -55,9 +54,9 @@ export default async function handler(req, res) {
           receipt: exp.receipt || false,
           receipt_url: exp.receipt_url || null,
         };
-        // Add extended fields only if they exist (table may not have these columns yet)
+        // Add extended fields only if they have values
         if (exp.tip != null && exp.tip !== 0) payload.tip = exp.tip;
-        if (exp.payment_method) payload.payment_method = exp.payment_method;
+        if (exp.payment_method && exp.payment_method !== "carta") payload.payment_method = exp.payment_method;
         if (exp.visit_reason) payload.visit_reason = exp.visit_reason;
         if (exp.place) payload.place = exp.place;
 

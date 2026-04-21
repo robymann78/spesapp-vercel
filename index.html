@@ -99,7 +99,7 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "insert", expense: {
-          id: exp.id, user_id: exp.userId, user_name: exp.userName,
+          user_id: exp.userId, user_name: exp.userName,
           date: exp.date, amount: exp.amount, currency: exp.currency || "EUR",
           category: exp.category, description: exp.description,
           shared_with: exp.sharedWith || "",
@@ -112,6 +112,7 @@
         }})
       });
       if (!res.ok) throw new Error("DB error " + res.status);
+      return await res.json();
     }
 
     async function updateExpenseInCloud(id, fields) {
@@ -1041,19 +1042,25 @@
       };
 
       const handleAddExpense = useCallback(async exp => {
-        const expForDb = { ...exp, receiptPreview: null, receiptFull: null };
-        let receiptUrl = null;
-        if (exp.receiptPreview) {
-          try {
-            const parts = exp.receiptPreview.split(",");
-            const mime = parts[0].split(":")[1]?.split(";")[0] || "image/jpeg";
-            receiptUrl = await uploadReceiptToStorage(exp.id, parts[1], mime);
-            expForDb.receiptFull = receiptUrl;
-          } catch(e) { console.warn("Upload failed", e); }
-        }
         try {
-          await saveExpenseToCloud({ ...expForDb, receipt: !!receiptUrl || exp.receipt });
-          setExpenses(prev => [{ ...exp, receiptFull: receiptUrl || exp.receiptFull }, ...prev]);
+          // Prima salva sul DB (senza immagine) per ottenere l'ID reale da Supabase
+          const expForDb = { ...exp, receiptPreview: null, receiptFull: null };
+          const saved = await saveExpenseToCloud(expForDb);
+          const realId = saved?.id || exp.id;
+
+          // Poi carica lo scontrino con l'ID reale
+          let receiptUrl = null;
+          if (exp.receiptPreview) {
+            try {
+              const parts = exp.receiptPreview.split(",");
+              const mime = parts[0].split(":")[1]?.split(";")[0] || "image/jpeg";
+              receiptUrl = await uploadReceiptToStorage(realId, parts[1], mime);
+              // Aggiorna receipt_url sul DB
+              await updateExpenseInCloud(realId, { receipt: true, receipt_url: receiptUrl });
+            } catch(e) { console.warn("Upload failed", e); }
+          }
+
+          setExpenses(prev => [{ ...exp, id: realId, receiptFull: receiptUrl || null, receiptPreview: null }, ...prev]);
         } catch(e) {
           console.error("Save failed:", e);
           alert("❌ Errore nel salvataggio: " + e.message + "\n\nVerifica la connessione e riprova.");
