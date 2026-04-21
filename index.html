@@ -84,6 +84,10 @@
         date: r.date, amount: r.amount, currency: r.currency || "EUR",
         category: r.category, description: r.description,
         sharedWith: r.shared_with || "",
+        tip: r.tip || 0,
+        paymentMethod: r.payment_method || "carta",
+        visitReason: r.visit_reason || "",
+        place: r.place || "",
         status: r.status, note: r.note || "",
         receipt: !!r.receipt, receiptPreview: null,
         receiptFull: r.receipt_url || null,
@@ -99,6 +103,10 @@
           date: exp.date, amount: exp.amount, currency: exp.currency || "EUR",
           category: exp.category, description: exp.description,
           shared_with: exp.sharedWith || "",
+          tip: exp.tip || 0,
+          payment_method: exp.paymentMethod || "carta",
+          visit_reason: exp.visitReason || "",
+          place: exp.place || "",
           status: exp.status, note: exp.note || "",
           receipt: exp.receipt, receipt_url: exp.receiptFull || null,
         }})
@@ -289,8 +297,9 @@
         date: initialData.date, amount: String(initialData.amount),
         category: initialData.category, description: initialData.description,
         receipt: initialData.receipt, currency: initialData.currency || "EUR",
-        sharedWith: initialData.sharedWith || "",
-      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"" });
+        sharedWith: initialData.sharedWith || "", tip: initialData.tip || 0,
+        paymentMethod: initialData.paymentMethod || "carta", visitReason: initialData.visitReason || "", place: initialData.place || "",
+      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"", tip:0, paymentMethod:"carta", visitReason:"", place:"" });
       const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || null);
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
@@ -404,10 +413,20 @@
                       style={{ padding:"11px 8px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
                       <option value="EUR">€ EUR</option>
                       <option value="USD">$ USD</option>
+                      <option value="MXN">$ MXN (Pesos)</option>
+                      <option value="RON">RON (Lei)</option>
+                      <option value="HRK">HRK (Kune)</option>
+                      <option value="TRY">₺ TRY (Lira)</option>
+                      <option value="HUF">Ft HUF (Fiorino)</option>
                     </select>
                     <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
                       style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
                   </div>
+                </div>
+                <div>
+                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MANCIA / TIP</label>
+                  <input type="number" inputMode="decimal" placeholder="0.00" value={form.tip||""} onChange={e => setForm({...form, tip: parseFloat(e.target.value)||0})}
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
                 </div>
               </div>
 
@@ -430,8 +449,35 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>CON CHI (opzionale)</label>
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>OSPITI</label>
                 <input type="text" placeholder="Es: Mario Rossi, Cliente ABC..." value={form.sharedWith} onChange={e => setForm({...form, sharedWith:e.target.value})}
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+              </div>
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MODALITÀ PAGAMENTO</label>
+                  <select value={form.paymentMethod} onChange={e => setForm({...form, paymentMethod:e.target.value})}
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
+                    <option value="carta">💳 Carta di credito</option>
+                    <option value="cash">💵 Cash</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MOTIVO VISITA</label>
+                  <select value={form.visitReason} onChange={e => setForm({...form, visitReason:e.target.value})}
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
+                    <option value="">-- seleziona --</option>
+                    <option value="fiera">🏢 Fiera</option>
+                    <option value="assistenza">🔧 Assistenza tecnica</option>
+                    <option value="cliente">🤝 Cliente</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>LUOGO</label>
+                <input type="text" placeholder="Es: Milano, Francoforte, Budapest..." value={form.place} onChange={e => setForm({...form, place:e.target.value})}
                   style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
               </div>
 
@@ -510,7 +556,11 @@
               {[
                 { label:"Data", value:exp.date },
                 { label:"Categoria", value:`${cat.icon} ${cat.label}` },
-                ...(exp.sharedWith ? [{ label:"Con chi", value:exp.sharedWith }] : []),
+                ...(exp.sharedWith ? [{ label:"Ospiti", value:exp.sharedWith }] : []),
+                ...(exp.tip > 0 ? [{ label:"Mancia", value:formatAmount(exp.tip, exp.currency||"EUR") }] : []),
+                ...(exp.paymentMethod ? [{ label:"Pagamento", value: exp.paymentMethod==="carta" ? "💳 Carta" : "💵 Cash" }] : []),
+                ...(exp.visitReason ? [{ label:"Motivo", value: {fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason] || exp.visitReason }] : []),
+                ...(exp.place ? [{ label:"Luogo", value:"📍 "+exp.place }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
               ].map(d => (
                 <div key={d.label} style={{ background:"#0f172a", borderRadius:12, padding:"10px 12px" }}>
@@ -616,7 +666,7 @@
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
-                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
+                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date}{exp.place ? ` · 📍 ${exp.place}` : ""}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
                         {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -716,7 +766,10 @@
           "ID": e.id, "Dipendente": e.userName, "Data": e.date,
           "Importo": e.amount, "Valuta": e.currency||"EUR",
           "Categoria": getCatInfo(e.category).label,
-          "Descrizione": e.description, "Con chi": e.sharedWith||"",
+          "Descrizione": e.description, "Ospiti": e.sharedWith||"",
+          "Luogo": e.place||"", "Mancia": e.tip||0,
+          "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
+          "Motivo visita": ({fiera:"Fiera", assistenza:"Assistenza tecnica", cliente:"Cliente"})[e.visitReason]||"",
           "Stato": STATUS_CONFIG[e.status]?.label || e.status,
           "Note Admin": e.note||"", "Scontrino": e.receipt ? "Sì" : "No",
         }));
@@ -873,7 +926,9 @@
                           <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:13 }}>{exp.description}</div>
                           <div style={{ color:"#64748b", fontSize:11, marginTop:1 }}>
                             {exp.userName} · {exp.date} · {cat.label}
+                            {exp.place ? ` · 📍 ${exp.place}` : ""}
                             {exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}
+                            {exp.visitReason ? ` · ${{fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason]||exp.visitReason}` : ""}
                             {!exp.receipt && <span style={{ color:"#ef4444" }}> · ⚠️ no scontrino</span>}
                           </div>
                           {exp.note && <div style={{ color:"#94a3b8", fontSize:11 }}>💬 {exp.note}</div>}
@@ -911,7 +966,7 @@
                   <div style={{ color:"#64748b", fontSize:11, marginBottom:3 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label}</div>
                   <div style={{ color:"#f1f5f9", fontWeight:600, marginBottom:3 }}>{selectedExpense.description}</div>
                   <div style={{ color:"#f1f5f9", fontSize:20, fontWeight:800 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency||"EUR")}</div>
-                  <div style={{ color:"#64748b", fontSize:11, marginTop:4 }}>👤 {selectedExpense.userName}{selectedExpense.sharedWith ? ` · 👥 ${selectedExpense.sharedWith}` : ""} {selectedExpense.receipt ? "· 📎 Scontrino allegato" : "· ⚠️ Nessun scontrino"}</div>
+                  <div style={{ color:"#64748b", fontSize:11, marginTop:4 }}>👤 {selectedExpense.userName}{selectedExpense.sharedWith ? ` · 👥 ${selectedExpense.sharedWith}` : ""}{selectedExpense.place ? ` · 📍 ${selectedExpense.place}` : ""} {selectedExpense.receipt ? "· 📎 Scontrino" : "· ⚠️ No scontrino"}</div>
                 </div>
                 {(selectedExpense.receiptFull || selectedExpense.receiptPreview) && (
                   <div style={{ marginBottom:12, borderRadius:10, overflow:"hidden", border:"1px solid #334155", cursor:"pointer" }} onClick={() => setViewReceipt(selectedExpense.receiptFull || selectedExpense.receiptPreview)}>
@@ -1002,7 +1057,8 @@
         await updateExpenseInCloud(exp.id, {
           date: expForDb.date, amount: expForDb.amount, currency: expForDb.currency||"EUR",
           category: expForDb.category, description: expForDb.description,
-          shared_with: expForDb.sharedWith||"",
+          shared_with: expForDb.sharedWith||"", tip: expForDb.tip||0,
+          payment_method: expForDb.paymentMethod||"carta", visit_reason: expForDb.visitReason||"", place: expForDb.place||"",
           receipt: expForDb.receipt, receipt_url: expForDb.receiptFull||null,
         });
         setExpenses(prev => prev.map(e => e.id===exp.id ? expForDb : e));
