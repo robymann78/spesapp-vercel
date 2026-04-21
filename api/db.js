@@ -29,9 +29,11 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    const { action, expense, id, fields } = body;
+    const { action, expense, id, fields, user } = body;
 
     switch (action) {
+
+      // ── EXPENSES ─────────────────────────────────────────────────────────────
 
       case "list": {
         const rows = await supabase("GET", "expenses?select=*&order=date.desc,created_at.desc");
@@ -54,7 +56,6 @@ export default async function handler(req, res) {
           receipt: exp.receipt || false,
           receipt_url: exp.receipt_url || null,
         };
-        // Add extended fields only if they have values
         if (exp.tip != null && exp.tip !== 0) payload.tip = exp.tip;
         if (exp.payment_method && exp.payment_method !== "carta") payload.payment_method = exp.payment_method;
         if (exp.visit_reason) payload.visit_reason = exp.visit_reason;
@@ -64,7 +65,6 @@ export default async function handler(req, res) {
           const rows = await supabase("POST", "expenses", payload);
           return res.status(200).json((rows && rows[0]) || payload);
         } catch(e) {
-          // Retry without extended fields if column error
           if (e.message.includes("column") || e.message.includes("42703")) {
             delete payload.tip; delete payload.payment_method;
             delete payload.visit_reason; delete payload.place;
@@ -81,7 +81,6 @@ export default async function handler(req, res) {
           const rows = await supabase("PATCH", `expenses?id=eq.${id}`, fields);
           return res.status(200).json((rows && rows[0]) || { ok: true });
         } catch(e) {
-          // Retry without extended fields if column error
           if (e.message.includes("column") || e.message.includes("42703")) {
             const safeFields = { ...fields };
             delete safeFields.tip; delete safeFields.payment_method;
@@ -96,6 +95,30 @@ export default async function handler(req, res) {
       case "delete": {
         if (!id) return res.status(400).json({ error: "Missing id" });
         await supabase("DELETE", `expenses?id=eq.${id}`);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── USERS ─────────────────────────────────────────────────────────────────
+
+      case "listUsers": {
+        const rows = await supabase("GET", "users?select=*&order=created_at.asc");
+        return res.status(200).json(rows || []);
+      }
+
+      case "insertUser": {
+        const payload = {
+          name: user.name,
+          email: user.email,
+          password: user.password,
+          role: user.role || "employee",
+        };
+        const rows = await supabase("POST", "users", payload);
+        return res.status(200).json((rows && rows[0]) || payload);
+      }
+
+      case "deleteUser": {
+        if (!id) return res.status(400).json({ error: "Missing id" });
+        await supabase("DELETE", `users?id=eq.${id}`);
         return res.status(200).json({ ok: true });
       }
 

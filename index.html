@@ -161,6 +161,8 @@
       try { return JSON.parse(sessionStorage.getItem("spesapp_user")) || null; } catch { return null; }
     }
 
+
+
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
     const formatAmount = (n, currency = "EUR") =>
@@ -242,11 +244,26 @@
         setError("");
         if (!email || !password) { setError("Inserisci email e password."); return; }
         setLoading(true);
-        setTimeout(() => {
-          const user = USERS.find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
-          if (user) { onLogin(user); }
-          else { setError("Email o password non corretti."); setLoading(false); }
-        }, 400);
+        // Prima cerca negli utenti hardcoded
+        const hardcoded = USERS.find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
+        if (hardcoded) { onLogin(hardcoded); return; }
+        // Poi cerca su Supabase
+        fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"listUsers" }) })
+          .then(r => r.json())
+          .then(rows => {
+            const dbUser = (rows || []).find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
+            if (dbUser) {
+              onLogin({ id: dbUser.id, name: dbUser.name, role: dbUser.role || "employee", email: dbUser.email, password: dbUser.password });
+            } else {
+              setError("Email o password non corretti.");
+              setLoading(false);
+            }
+          })
+          .catch(() => {
+            setError("Errore di connessione. Riprova.");
+            setLoading(false);
+          });
       };
 
       return (
@@ -745,6 +762,74 @@
       const [viewReceipt, setViewReceipt] = useState(null);
       const [viewingExpense, setViewingExpense] = useState(null);
 
+      // ── Gestione utenti ──
+      const [users, setUsers] = useState([]);
+      const [usersLoading, setUsersLoading] = useState(false);
+      const [showAddUser, setShowAddUser] = useState(false);
+      const [newUser, setNewUser] = useState({ name:"", surname:"", email:"", password:"" });
+      const [userError, setUserError] = useState("");
+      const [userSaving, setUserSaving] = useState(false);
+      const [deletingUser, setDeletingUser] = useState(null);
+
+      // Carica utenti da Supabase quando si apre la tab
+      useEffect(() => {
+        if (activeTab !== "users") return;
+        setUsersLoading(true);
+        fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"listUsers" }) })
+          .then(r => r.json())
+          .then(rows => {
+            setUsers(rows || []);
+            setUsersLoading(false);
+          })
+          .catch(() => setUsersLoading(false));
+      }, [activeTab]);
+
+      const handleAddUser = async () => {
+        setUserError("");
+        const { name, surname, email, password } = newUser;
+        if (!name.trim() || !surname.trim() || !email.trim() || !password.trim()) {
+          setUserError("Tutti i campi sono obbligatori."); return;
+        }
+        if (!/\S+@\S+\.\S+/.test(email)) {
+          setUserError("Email non valida."); return;
+        }
+        if (users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) {
+          setUserError("Email già in uso."); return;
+        }
+        setUserSaving(true);
+        try {
+          const res = await fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ action:"insertUser", user: {
+              name: `${name.trim()} ${surname.trim()}`,
+              email: email.trim(),
+              password: password.trim(),
+              role: "employee",
+            }})
+          });
+          if (!res.ok) throw new Error("Errore " + res.status);
+          const saved = await res.json();
+          setUsers(prev => [...prev, saved]);
+          setNewUser({ name:"", surname:"", email:"", password:"" });
+          setShowAddUser(false);
+        } catch(e) {
+          setUserError("Errore nel salvataggio: " + e.message);
+        } finally {
+          setUserSaving(false);
+        }
+      };
+
+      const handleDeleteUser = async (uid) => {
+        try {
+          await fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ action:"deleteUser", id: uid }) });
+          setUsers(prev => prev.filter(u => u.id !== uid));
+          setDeletingUser(null);
+        } catch(e) {
+          alert("Errore nella cancellazione: " + e.message);
+        }
+      };
+
       const pending  = expenses.filter(e => e.status==="pending");
       const eurAll   = expenses.filter(e => (e.currency||"EUR")==="EUR");
       const totalAll = eurAll.reduce((s,e) => s+e.amount, 0);
@@ -816,6 +901,7 @@
       const TABS = [
         { id:"dashboard", label:"Dashboard", icon:"📊" },
         { id:"expenses",  label:`Spese${pending.length ? ` (${pending.length})` : ""}`, icon:"📋" },
+        { id:"users",     label:"Utenti", icon:"👥" },
       ];
 
       return (
@@ -966,6 +1052,113 @@
                     );
                   })}
                 </div>
+              </>
+            )}
+
+            {activeTab==="users" && (
+              <>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                  <h2 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:0 }}>Gestione Utenti</h2>
+                  <button onClick={() => { setShowAddUser(true); setUserError(""); setNewUser({ name:"", surname:"", email:"", password:"" }); }}
+                    style={{ padding:"8px 16px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#3b82f6,#6366f1)", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                    + Nuovo utente
+                  </button>
+                </div>
+
+                {usersLoading ? (
+                  <div style={{ textAlign:"center", padding:40, color:"#64748b" }}>
+                    <div style={{ width:24, height:24, border:"3px solid #3b82f6", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
+                    <div>Caricamento utenti...</div>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    {users.map(u => (
+                      <div key={u.id} style={{ background:"#1e293b", borderRadius:14, padding:"14px 16px", border:"1px solid #334155", display:"flex", alignItems:"center", gap:12 }}>
+                        <Avatar name={u.name} size={40} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>{u.name}</div>
+                          <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{u.email}</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                          <span style={{ background:"rgba(59,130,246,0.15)", color:"#3b82f6", fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:20 }}>{u.role || "dipendente"}</span>
+                          <button onClick={() => setDeletingUser(u)}
+                            style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #ef444440", background:"rgba(239,68,68,0.08)", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer" }}>
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {users.length === 0 && (
+                      <div style={{ textAlign:"center", padding:40, color:"#64748b" }}>
+                        <div style={{ fontSize:36, marginBottom:10 }}>👥</div>
+                        <div>Nessun utente presente</div>
+                        <div style={{ fontSize:12, marginTop:6 }}>Clicca "+ Nuovo utente" per aggiungerne uno</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Modal aggiungi utente */}
+                {showAddUser && (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
+                    <div style={{ background:"#1e293b", borderRadius:20, padding:"28px 24px", width:"100%", maxWidth:420, border:"1px solid #334155" }}>
+                      <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:"0 0 20px" }}>➕ Nuovo Utente</h3>
+
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                        <div>
+                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>NOME *</label>
+                          <input type="text" placeholder="Mario" value={newUser.name} onChange={e => setNewUser({...newUser, name:e.target.value})}
+                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                        </div>
+                        <div>
+                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>COGNOME *</label>
+                          <input type="text" placeholder="Rossi" value={newUser.surname} onChange={e => setNewUser({...newUser, surname:e.target.value})}
+                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom:12 }}>
+                        <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>EMAIL *</label>
+                        <input type="email" placeholder="mario.rossi@alberici.net" value={newUser.email} onChange={e => setNewUser({...newUser, email:e.target.value})}
+                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                      </div>
+
+                      <div style={{ marginBottom: userError ? 10 : 20 }}>
+                        <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>PASSWORD *</label>
+                        <input type="text" placeholder="password sicura" value={newUser.password} onChange={e => setNewUser({...newUser, password:e.target.value})}
+                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                      </div>
+
+                      {userError && <div style={{ color:"#ef4444", fontSize:12, fontWeight:600, marginBottom:14 }}>⚠️ {userError}</div>}
+
+                      <div style={{ display:"flex", gap:10 }}>
+                        <button onClick={() => setShowAddUser(false)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                        <button onClick={handleAddUser} disabled={userSaving} style={{ flex:2, padding:12, borderRadius:10, border:"none", background: userSaving ? "#334155" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: userSaving ? "#64748b" : "#fff", fontWeight:700, fontSize:15, cursor: userSaving ? "default" : "pointer", boxShadow: userSaving ? "none" : "0 4px 16px rgba(99,102,241,0.4)" }}>
+                          {userSaving ? "Salvataggio..." : "Aggiungi Utente"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modal conferma eliminazione */}
+                {deletingUser && (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
+                    <div style={{ background:"#1e293b", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
+                      <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
+                      <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 8px" }}>Rimuovi utente?</h3>
+                      <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 6px" }}>{deletingUser.name}</p>
+                      <p style={{ color:"#64748b", fontSize:12, textAlign:"center", margin:"0 0 20px" }}>{deletingUser.email}</p>
+                      <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"8px 12px", marginBottom:16, color:"#f59e0b", fontSize:12, textAlign:"center" }}>
+                        ⚠️ L'utente non potrà più accedere all'app
+                      </div>
+                      <div style={{ display:"flex", gap:10 }}>
+                        <button onClick={() => setDeletingUser(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                        <button onClick={() => handleDeleteUser(deletingUser.id)} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Rimuovi</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
