@@ -1041,7 +1041,6 @@
       };
 
       const handleAddExpense = useCallback(async exp => {
-        // Strip images before saving to DB
         const expForDb = { ...exp, receiptPreview: null, receiptFull: null };
         let receiptUrl = null;
         if (exp.receiptPreview) {
@@ -1052,8 +1051,13 @@
             expForDb.receiptFull = receiptUrl;
           } catch(e) { console.warn("Upload failed", e); }
         }
-        await saveExpenseToCloud({ ...expForDb, receipt: !!receiptUrl || exp.receipt });
-        setExpenses(prev => [{ ...exp, receiptFull: receiptUrl || exp.receiptFull }, ...prev]);
+        try {
+          await saveExpenseToCloud({ ...expForDb, receipt: !!receiptUrl || exp.receipt });
+          setExpenses(prev => [{ ...exp, receiptFull: receiptUrl || exp.receiptFull }, ...prev]);
+        } catch(e) {
+          console.error("Save failed:", e);
+          alert("❌ Errore nel salvataggio: " + e.message + "\n\nVerifica la connessione e riprova.");
+        }
       }, []);
 
       const handleEditExpense = useCallback(async exp => {

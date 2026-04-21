@@ -50,23 +50,48 @@ export default async function handler(req, res) {
           category: exp.category,
           description: exp.description,
           shared_with: exp.shared_with || null,
-          tip: exp.tip || 0,
-          payment_method: exp.payment_method || "carta",
-          visit_reason: exp.visit_reason || null,
-          place: exp.place || null,
           status: exp.status || "pending",
           note: exp.note || "",
           receipt: exp.receipt || false,
           receipt_url: exp.receipt_url || null,
         };
-        const rows = await supabase("POST", "expenses", payload);
-        return res.status(200).json((rows && rows[0]) || payload);
+        // Add extended fields only if they exist (table may not have these columns yet)
+        if (exp.tip != null && exp.tip !== 0) payload.tip = exp.tip;
+        if (exp.payment_method) payload.payment_method = exp.payment_method;
+        if (exp.visit_reason) payload.visit_reason = exp.visit_reason;
+        if (exp.place) payload.place = exp.place;
+
+        try {
+          const rows = await supabase("POST", "expenses", payload);
+          return res.status(200).json((rows && rows[0]) || payload);
+        } catch(e) {
+          // Retry without extended fields if column error
+          if (e.message.includes("column") || e.message.includes("42703")) {
+            delete payload.tip; delete payload.payment_method;
+            delete payload.visit_reason; delete payload.place;
+            const rows2 = await supabase("POST", "expenses", payload);
+            return res.status(200).json((rows2 && rows2[0]) || payload);
+          }
+          throw e;
+        }
       }
 
       case "update": {
         if (!id) return res.status(400).json({ error: "Missing id" });
-        const rows = await supabase("PATCH", `expenses?id=eq.${id}`, fields);
-        return res.status(200).json((rows && rows[0]) || { ok: true });
+        try {
+          const rows = await supabase("PATCH", `expenses?id=eq.${id}`, fields);
+          return res.status(200).json((rows && rows[0]) || { ok: true });
+        } catch(e) {
+          // Retry without extended fields if column error
+          if (e.message.includes("column") || e.message.includes("42703")) {
+            const safeFields = { ...fields };
+            delete safeFields.tip; delete safeFields.payment_method;
+            delete safeFields.visit_reason; delete safeFields.place;
+            const rows2 = await supabase("PATCH", `expenses?id=eq.${id}`, safeFields);
+            return res.status(200).json((rows2 && rows2[0]) || { ok: true });
+          }
+          throw e;
+        }
       }
 
       case "delete": {
