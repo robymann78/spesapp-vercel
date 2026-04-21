@@ -384,6 +384,7 @@
       const valid = form.amount && form.description;
 
       return (
+        <>
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && onClose()}>
           <div style={{ background:"#1e293b", borderRadius:"22px 22px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #334155", boxShadow:"0 -24px 60px rgba(0,0,0,0.6)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
             <div style={{ width:36, height:4, borderRadius:2, background:"#334155", margin:"0 auto 18px" }} />
@@ -534,6 +535,7 @@
             <button onClick={() => setLightbox(false)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
           </div>
         )}
+        </>
       );
     }
 
