@@ -67,11 +67,15 @@
 
     // ─── Supabase Cloud ──────────────────────────────────────────────────────────
 
-    async function loadExpensesFromCloud() {
+    async function loadExpensesFromCloud(currentUser) {
+      // Admin vede tutto, dipendente solo le sue
+      const filter = currentUser.role === "admin"
+        ? "expenses?select=*&order=date.desc,created_at.desc"
+        : `expenses?select=*&user_name=eq.${encodeURIComponent(currentUser.name)}&order=date.desc,created_at.desc`;
       const res = await fetch("/api/db", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" })
+        body: JSON.stringify({ action: "list", userName: currentUser.role !== "admin" ? currentUser.name : null })
       });
       if (!res.ok) throw new Error("DB error " + res.status);
       const rows = await res.json();
@@ -620,7 +624,7 @@
       const [viewReceipt, setViewReceipt] = useState(null);
       const [viewingExpense, setViewingExpense] = useState(null);
 
-      const myExpenses = expenses.filter(e => e.userId == user.id);
+      const myExpenses = expenses.filter(e => e.userName === user.name || e.userId == user.id);
       const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
       const total    = eurExp.reduce((s,e) => s+e.amount, 0);
       const approved = eurExp.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
@@ -844,9 +848,9 @@
 
       const byEmployee = users.map(u => ({
         ...u,
-        total: expenses.filter(e => e.userId==u.id && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
-        totalUsd: expenses.filter(e => e.userId==u.id && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
-        count: expenses.filter(e => e.userId==u.id).length
+        total: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
+        totalUsd: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
+        count: expenses.filter(e => e.userName===u.name || e.userId==u.id).length
       })).sort((a,b) => b.total-a.total);
 
       const filtered = filterStatus==="all" ? expenses : expenses.filter(e => e.status===filterStatus);
@@ -875,7 +879,7 @@
         }));
 
         const byEmpData = users.map(u => {
-          const ue = expenses.filter(e => e.userId==u.id);
+          const ue = expenses.filter(e => e.userName===u.name || e.userId==u.id);
           return {
             "Dipendente": u.name,
             "N. Spese": ue.length,
@@ -1221,7 +1225,7 @@
         if (!currentUser) { setLoading(false); return; }
         setLoading(true);
         setDbError("");
-        loadExpensesFromCloud()
+        loadExpensesFromCloud(currentUser)
           .then(rows => { setExpenses(rows); setLoading(false); })
           .catch(e => { setDbError("Errore connessione database. Riprova."); setLoading(false); });
       }, [currentUser]);

@@ -36,7 +36,11 @@ export default async function handler(req, res) {
       // ── EXPENSES ─────────────────────────────────────────────────────────────
 
       case "list": {
-        const rows = await supabase("GET", "expenses?select=*&order=date.desc,created_at.desc");
+        const { userName } = body;
+        const path = userName
+          ? `expenses?select=*&user_name=eq.${encodeURIComponent(userName)}&order=date.desc,created_at.desc`
+          : "expenses?select=*&order=date.desc,created_at.desc";
+        const rows = await supabase("GET", path);
         return res.status(200).json(rows || []);
       }
 
