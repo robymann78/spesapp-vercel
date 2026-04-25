@@ -620,7 +620,7 @@
       const [viewReceipt, setViewReceipt] = useState(null);
       const [viewingExpense, setViewingExpense] = useState(null);
 
-      const myExpenses = expenses.filter(e => e.userId === user.id);
+      const myExpenses = expenses.filter(e => e.userId == user.id);
       const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
       const total    = eurExp.reduce((s,e) => s+e.amount, 0);
       const approved = eurExp.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
@@ -767,17 +767,23 @@
       const [userSaving, setUserSaving] = useState(false);
       const [deletingUser, setDeletingUser] = useState(null);
 
-      // Carica utenti da Supabase quando si apre la tab
+      // Carica utenti da Supabase all'avvio (serve per dashboard e tab utenti)
+      useEffect(() => {
+        fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"listUsers" }) })
+          .then(r => r.json())
+          .then(rows => setUsers(rows || []))
+          .catch(() => {});
+      }, []);
+
+      // Ricarica quando si apre la tab utenti
       useEffect(() => {
         if (activeTab !== "users") return;
         setUsersLoading(true);
         fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
           body: JSON.stringify({ action:"listUsers" }) })
           .then(r => r.json())
-          .then(rows => {
-            setUsers(rows || []);
-            setUsersLoading(false);
-          })
+          .then(rows => { setUsers(rows || []); setUsersLoading(false); })
           .catch(() => setUsersLoading(false));
       }, [activeTab]);
 
@@ -836,11 +842,11 @@
         ...cat, total: expenses.filter(e => e.category===cat.id).reduce((s,e) => s+e.amount, 0)
       })).filter(c => c.total>0).sort((a,b) => b.total-a.total);
 
-      const byEmployee = USERS.filter(u => u.role==="employee").map(u => ({
+      const byEmployee = users.map(u => ({
         ...u,
-        total: expenses.filter(e => e.userId===u.id && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
-        totalUsd: expenses.filter(e => e.userId===u.id && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
-        count: expenses.filter(e => e.userId===u.id).length
+        total: expenses.filter(e => e.userId==u.id && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
+        totalUsd: expenses.filter(e => e.userId==u.id && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
+        count: expenses.filter(e => e.userId==u.id).length
       })).sort((a,b) => b.total-a.total);
 
       const filtered = filterStatus==="all" ? expenses : expenses.filter(e => e.status===filterStatus);
@@ -868,8 +874,8 @@
           "Note Admin": e.note||"", "Scontrino": e.receipt ? "Sì" : "No",
         }));
 
-        const byEmpData = USERS.filter(u => u.role==="employee").map(u => {
-          const ue = expenses.filter(e => e.userId===u.id);
+        const byEmpData = users.map(u => {
+          const ue = expenses.filter(e => e.userId==u.id);
           return {
             "Dipendente": u.name,
             "N. Spese": ue.length,
