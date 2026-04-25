@@ -46,13 +46,15 @@
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdHdpcGthbm53d2ZudmhxYnhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMzc2MzUsImV4cCI6MjA5MTgxMzYzNX0.J-Y9D1pdd_ipMe8-X0IKCXY1y-zmI5GYEyBMLVVUi5o";
 
     const CATEGORIES = [
-      { id: "travel",    label: "Viaggio",        icon: "✈️",  color: "#3b82f6" },
-      { id: "meals",     label: "Pasti",           icon: "🍽️", color: "#f59e0b" },
-      { id: "hotel",     label: "Alloggio",        icon: "🏨",  color: "#8b5cf6" },
-      { id: "fuel",      label: "Carburante",      icon: "⛽",  color: "#ef4444" },
-      { id: "client",    label: "Rappresentanza",  icon: "🤝",  color: "#10b981" },
-      { id: "materials", label: "Materiali",       icon: "📦",  color: "#6366f1" },
-      { id: "other",     label: "Altro",           icon: "📋",  color: "#6b7280" },
+      { id: "meals",     label: "Vitto",                    icon: "🍽️", color: "#f59e0b" },
+      { id: "hotel",     label: "Alloggio",                 icon: "🏨",  color: "#8b5cf6" },
+      { id: "taxi",      label: "Taxi/NCC",                 icon: "🚕",  color: "#3b82f6" },
+      { id: "carrental", label: "Noleggio Auto",            icon: "🚗",  color: "#06b6d4" },
+      { id: "parking",   label: "Parcheggi/Autorimesse",   icon: "🅿️",  color: "#10b981" },
+      { id: "toll",      label: "Pedaggi Autostradali",     icon: "🛣️",  color: "#f97316" },
+      { id: "fuel",      label: "Carburanti",               icon: "⛽",  color: "#ef4444" },
+      { id: "travel",    label: "Viaggio",                  icon: "✈️",  color: "#6366f1" },
+      { id: "other",     label: "Altro",                    icon: "📋",  color: "#6b7280" },
     ];
 
     const USERS = [
@@ -84,7 +86,6 @@
         date: r.date, amount: r.amount, currency: r.currency || "EUR",
         category: r.category, description: r.description,
         sharedWith: r.shared_with || "",
-        tip: r.tip || 0,
         paymentMethod: r.payment_method || "carta",
         visitReason: r.visit_reason || "",
         place: r.place || "",
@@ -103,7 +104,6 @@
           date: exp.date, amount: exp.amount, currency: exp.currency || "EUR",
           category: exp.category, description: exp.description,
           shared_with: exp.sharedWith || "",
-          tip: exp.tip || 0,
           payment_method: exp.paymentMethod || "carta",
           visit_reason: exp.visitReason || "",
           place: exp.place || "",
@@ -315,9 +315,9 @@
         date: initialData.date, amount: String(initialData.amount),
         category: initialData.category, description: initialData.description,
         receipt: initialData.receipt, currency: initialData.currency || "EUR",
-        sharedWith: initialData.sharedWith || "", tip: initialData.tip || 0,
+        sharedWith: initialData.sharedWith || "",
         paymentMethod: initialData.paymentMethod || "carta", visitReason: initialData.visitReason || "", place: initialData.place || "",
-      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"", tip:0, paymentMethod:"carta", visitReason:"", place:"" });
+      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"", paymentMethod:"carta", visitReason:"", place:"" });
       const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || null);
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
@@ -433,21 +433,28 @@
                       style={{ padding:"11px 8px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
                       <option value="EUR">€ EUR</option>
                       <option value="USD">$ USD</option>
-                      <option value="MXN">$ MXN (Pesos)</option>
-                      <option value="PLN">zł PLN (Zloty)</option>
-                      <option value="RON">RON (Lei)</option>
-                      <option value="TRY">₺ TRY (Lira)</option>
-                      <option value="HUF">Ft HUF (Fiorino)</option>
+                      <option value="TRY">₺ TRY</option>
+                      <option value="RSD">RSD</option>
+                      <option value="BAM">BAM</option>
+                      <option value="GBP">£ GBP</option>
+                      <option value="MXN">$ MXN</option>
+                      <option value="BRL">R$ BRL</option>
+                      <option value="AUD">A$ AUD</option>
+                      <option value="PEN">S/ PEN</option>
+                      <option value="AED">AED</option>
+                      <option value="CHF">CHF</option>
+                      <option value="RON">RON</option>
+                      <option value="COP">COP</option>
+                      <option value="SGD">S$ SGD</option>
+                      <option value="PLN">zł PLN</option>
+                      <option value="HUF">Ft HUF</option>
+                      <option value="CZK">Kč CZK</option>
                     </select>
                     <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
                       style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
                   </div>
                 </div>
-                <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MANCIA / TIP</label>
-                  <input type="number" inputMode="decimal" placeholder="0.00" value={form.tip||""} onChange={e => setForm({...form, tip: parseFloat(e.target.value)||0})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
-                </div>
+
               </div>
 
               <div>
@@ -585,8 +592,7 @@
                 { label:"Data", value:exp.date },
                 { label:"Categoria", value:`${cat.icon} ${cat.label}` },
                 ...(exp.sharedWith ? [{ label:"Ospiti", value:exp.sharedWith }] : []),
-                ...(exp.tip > 0 ? [{ label:"Mancia", value:formatAmount(exp.tip, exp.currency||"EUR") }] : []),
-                ...(exp.paymentMethod ? [{ label:"Pagamento", value: exp.paymentMethod==="carta" ? "💳 Carta" : "💵 Cash" }] : []),
+...(exp.paymentMethod ? [{ label:"Pagamento", value: exp.paymentMethod==="carta" ? "💳 Carta" : "💵 Cash" }] : []),
                 ...(exp.visitReason ? [{ label:"Motivo", value: {fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason] || exp.visitReason }] : []),
                 ...(exp.place ? [{ label:"Luogo", value:"📍 "+exp.place }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
@@ -871,8 +877,7 @@
           "Importo": e.amount, "Valuta": e.currency||"EUR",
           "Categoria": getCatInfo(e.category).label,
           "Descrizione": e.description, "Ospiti": e.sharedWith||"",
-          "Luogo": e.place||"", "Mancia": e.tip||0,
-          "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
+          "Luogo": e.place||"", "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
           "Motivo visita": ({fiera:"Fiera", assistenza:"Assistenza tecnica", cliente:"Cliente"})[e.visitReason]||"",
           "Stato": STATUS_CONFIG[e.status]?.label || e.status,
           "Note Admin": e.note||"", "Scontrino": e.receipt ? "Sì" : "No",
@@ -1279,7 +1284,7 @@
         await updateExpenseInCloud(exp.id, {
           date: expForDb.date, amount: expForDb.amount, currency: expForDb.currency||"EUR",
           category: expForDb.category, description: expForDb.description,
-          shared_with: expForDb.sharedWith||"", tip: expForDb.tip||0,
+          shared_with: expForDb.sharedWith||"",
           payment_method: expForDb.paymentMethod||"carta", visit_reason: expForDb.visitReason||"", place: expForDb.place||"",
           receipt: expForDb.receipt, receipt_url: expForDb.receiptFull||null,
         });
