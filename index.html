@@ -503,7 +503,7 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>LUOGO</label>
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>ZONA</label>
                 <input type="text" placeholder="Es: Milano, Francoforte, Budapest..." value={form.place} onChange={e => setForm({...form, place:e.target.value})}
                   style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
               </div>
@@ -594,7 +594,7 @@
                 ...(exp.sharedWith ? [{ label:"Ospiti", value:exp.sharedWith }] : []),
 ...(exp.paymentMethod ? [{ label:"Pagamento", value: exp.paymentMethod==="carta" ? "💳 Carta" : "💵 Cash" }] : []),
                 ...(exp.visitReason ? [{ label:"Motivo", value: {fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason] || exp.visitReason }] : []),
-                ...(exp.place ? [{ label:"Luogo", value:"📍 "+exp.place }] : []),
+                ...(exp.place ? [{ label:"Zona", value:"📍 "+exp.place }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
               ].map(d => (
                 <div key={d.label} style={{ background:"#0f172a", borderRadius:12, padding:"10px 12px" }}>
@@ -877,7 +877,7 @@
           "Importo": e.amount, "Valuta": e.currency||"EUR",
           "Categoria": getCatInfo(e.category).label,
           "Descrizione": e.description, "Ospiti": e.sharedWith||"",
-          "Luogo": e.place||"", "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
+          "Zona": e.place||"", "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
           "Motivo visita": ({fiera:"Fiera", assistenza:"Assistenza tecnica", cliente:"Cliente"})[e.visitReason]||"",
           "Stato": STATUS_CONFIG[e.status]?.label || e.status,
           "Note Admin": e.note||"", "Scontrino": e.receipt ? "Sì" : "No",
@@ -1287,6 +1287,7 @@
           shared_with: expForDb.sharedWith||"",
           payment_method: expForDb.paymentMethod||"carta", visit_reason: expForDb.visitReason||"", place: expForDb.place||"",
           receipt: expForDb.receipt, receipt_url: expForDb.receiptFull||null,
+          status: expForDb.status, note: expForDb.note||"",
         });
         setExpenses(prev => prev.map(e => e.id===exp.id ? expForDb : e));
       }, []);
