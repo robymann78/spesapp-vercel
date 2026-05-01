@@ -165,6 +165,12 @@
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+    const getWeekNumber = (dateStr) => {
+      const d = new Date(dateStr);
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      return Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    };
+
     const formatAmount = (n, currency = "EUR") =>
       new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(n);
     const formatEur = n => formatAmount(n, "EUR");
@@ -309,7 +315,7 @@
 
     // ─── New Expense Modal ────────────────────────────────────────────────────────
 
-    function NewExpenseModal({ onClose, onSave, currentUserId, currentUserName, initialData }) {
+    function NewExpenseModal({ onClose, onSave, currentUserId, currentUserName, initialData, defaultPlace="" }) {
       const isEdit = !!initialData;
       const [form, setForm] = useState(initialData ? {
         date: initialData.date, amount: String(initialData.amount),
@@ -317,7 +323,7 @@
         receipt: initialData.receipt, currency: initialData.currency || "EUR",
         sharedWith: initialData.sharedWith || "",
         paymentMethod: initialData.paymentMethod || "carta", visitReason: initialData.visitReason || "", place: initialData.place || "",
-      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"", paymentMethod:"carta", visitReason:"", place:"" });
+      } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:"", paymentMethod:"carta", visitReason:"", place:defaultPlace });
       const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || null);
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
@@ -425,6 +431,7 @@
                   <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DATA</label>
                   <input type="date" value={form.date} onChange={e => setForm({...form, date:e.target.value})}
                     style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                  {form.date && <div style={{ marginTop:4, fontSize:11, color:"#a5b4fc", fontWeight:700 }}>📅 Settimana {getWeekNumber(form.date)}</div>}
                 </div>
                 <div>
                   <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>IMPORTO {ocring && <span style={{color:"#6366f1"}}>⟳</span>}</label>
@@ -497,7 +504,7 @@
                     <option value="">-- seleziona --</option>
                     <option value="fiera">🏢 Fiera</option>
                     <option value="assistenza">🔧 Assistenza tecnica</option>
-                    <option value="cliente">🤝 Cliente</option>
+                    <option value="cliente">🤝 Cliente/Potenziale cliente</option>
                   </select>
                 </div>
               </div>
@@ -584,7 +591,10 @@
               <button onClick={onClose} style={{ background:"#0f172a", border:"1px solid #334155", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, flexShrink:0 }}>✕</button>
             </div>
             <div style={{ background:"#0f172a", borderRadius:14, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ color:"#64748b", fontSize:13 }}>Importo</div>
+              <div>
+                <div style={{ color:"#64748b", fontSize:13 }}>Importo</div>
+                <div style={{ color:"#64748b", fontSize:11, marginTop:2 }}>📅 Settimana {getWeekNumber(exp.date)}</div>
+              </div>
               <div style={{ color:"#3b82f6", fontSize:22, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
@@ -593,7 +603,7 @@
                 { label:"Categoria", value:`${cat.icon} ${cat.label}` },
                 ...(exp.sharedWith ? [{ label:"Ospiti", value:exp.sharedWith }] : []),
 ...(exp.paymentMethod ? [{ label:"Pagamento", value: exp.paymentMethod==="carta" ? "💳 Carta" : "💵 Cash" }] : []),
-                ...(exp.visitReason ? [{ label:"Motivo", value: {fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason] || exp.visitReason }] : []),
+                ...(exp.visitReason ? [{ label:"Motivo", value: {fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente/Potenziale cliente"}[exp.visitReason] || exp.visitReason }] : []),
                 ...(exp.place ? [{ label:"Zona", value:"📍 "+exp.place }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
               ].map(d => (
@@ -631,6 +641,7 @@
       const [viewingExpense, setViewingExpense] = useState(null);
 
       const myExpenses = expenses.filter(e => e.userName === user.name || e.userId == user.id);
+      const lastPlace = [...myExpenses].reverse().find(e => e.place)?.place || "";
       const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
       const total    = eurExp.reduce((s,e) => s+e.amount, 0);
       const approved = eurExp.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
@@ -700,7 +711,7 @@
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
-                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date}{exp.place ? ` · 📍 ${exp.place}` : ""}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
+                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} <span style={{background:"rgba(99,102,241,0.15)",color:"#a5b4fc",fontSize:10,fontWeight:700,padding:"1px 5px",borderRadius:4}}>Sett.{getWeekNumber(exp.date)}</span>{exp.place ? ` · 📍 ${exp.place}` : ""}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
                         {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -725,7 +736,7 @@
             </div>
           </div>
 
-          {showModal && <NewExpenseModal onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} />}
+          {showModal && <NewExpenseModal onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} defaultPlace={lastPlace} />}
           {editingExpense && <NewExpenseModal onClose={() => setEditingExpense(null)} onSave={exp => { onEditExpense({...exp, status: (editingExpense.status==="approved" || editingExpense.status==="rejected") ? "pending" : exp.status, note: ""}); setEditingExpense(null); }} currentUserId={user.id} currentUserName={user.name} initialData={editingExpense} />}
 
           {deletingExpense && (
@@ -873,12 +884,12 @@
         const today = new Date().toISOString().split("T")[0];
 
         const allData = expenses.map(e => ({
-          "ID": e.id, "Dipendente": e.userName, "Data": e.date,
+          "ID": e.id, "Dipendente": e.userName, "Data": e.date, "Settimana": getWeekNumber(e.date),
           "Importo": e.amount, "Valuta": e.currency||"EUR",
           "Categoria": getCatInfo(e.category).label,
           "Descrizione": e.description, "Ospiti": e.sharedWith||"",
           "Zona": e.place||"", "Pagamento": e.paymentMethod==="carta" ? "Carta" : "Cash",
-          "Motivo visita": ({fiera:"Fiera", assistenza:"Assistenza tecnica", cliente:"Cliente"})[e.visitReason]||"",
+          "Motivo visita": ({fiera:"Fiera", assistenza:"Assistenza tecnica", cliente:"Cliente/Potenziale cliente"})[e.visitReason]||"",
           "Stato": STATUS_CONFIG[e.status]?.label || e.status,
           "Note Admin": e.note||"", "Scontrino": e.receipt ? "Sì" : "No",
         }));
@@ -1035,10 +1046,10 @@
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:13 }}>{exp.description}</div>
                           <div style={{ color:"#64748b", fontSize:11, marginTop:1 }}>
-                            {exp.userName} · {exp.date} · {cat.label}
+                            {exp.userName} · {exp.date} <span style={{background:"rgba(99,102,241,0.15)",color:"#a5b4fc",fontSize:10,fontWeight:700,padding:"1px 5px",borderRadius:4,marginLeft:2}}>Sett.{getWeekNumber(exp.date)}</span> · {cat.label}
                             {exp.place ? ` · 📍 ${exp.place}` : ""}
                             {exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}
-                            {exp.visitReason ? ` · ${{fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente"}[exp.visitReason]||exp.visitReason}` : ""}
+                            {exp.visitReason ? ` · ${{fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente/Potenziale cliente"}[exp.visitReason]||exp.visitReason}` : ""}
                             {!exp.receipt && <span style={{ color:"#ef4444" }}> · ⚠️ no scontrino</span>}
                           </div>
                           {exp.note && <div style={{ color:"#94a3b8", fontSize:11 }}>💬 {exp.note}</div>}
