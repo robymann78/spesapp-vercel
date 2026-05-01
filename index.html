@@ -878,12 +878,24 @@
         setNoteInput("");
       };
 
-      const exportExcel = () => {
+      // ── Export con filtro date ──────────────────────────────────────────────
+      const thisYear = new Date().getFullYear();
+      const thisMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+      const [exportDateFrom, setExportDateFrom] = useState(`${thisYear}-${thisMonth}-01`);
+      const [exportDateTo, setExportDateTo] = useState(new Date().toISOString().split("T")[0]);
+      const [showExportPanel, setShowExportPanel] = useState(false);
+
+      const exportExcel = (dateFrom, dateTo) => {
         const XLSX = window.XLSX;
         if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
-        const today = new Date().toISOString().split("T")[0];
 
-        const allData = expenses.map(e => ({
+        const from = dateFrom || exportDateFrom;
+        const to   = dateTo   || exportDateTo;
+        const filtered = expenses.filter(e => (!from || e.date >= from) && (!to || e.date <= to));
+
+        const label = from === to ? from : `${from}_${to}`;
+
+        const allData = filtered.map(e => ({
           "ID": e.id, "Dipendente": e.userName, "Data": e.date, "Settimana": getWeekNumber(e.date),
           "Importo": e.amount, "Valuta": e.currency||"EUR",
           "Categoria": getCatInfo(e.category).label,
@@ -895,7 +907,7 @@
         }));
 
         const byEmpData = users.map(u => {
-          const ue = expenses.filter(e => e.userName===u.name || e.userId==u.id);
+          const ue = filtered.filter(e => e.userName===u.name || e.userId==u.id);
           return {
             "Dipendente": u.name,
             "N. Spese": ue.length,
@@ -907,17 +919,48 @@
           };
         });
 
-        const byCatData = byCategory.map(cat => ({
-          "Categoria": cat.label,
-          "Totale EUR": expenses.filter(e => e.category===cat.id && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0).toFixed(2),
-          "N. Spese": expenses.filter(e => e.category===cat.id).length,
-        }));
+        const byCatData = CATEGORIES.map(cat => {
+          const ce = filtered.filter(e => e.category===cat.id);
+          return {
+            "Categoria": cat.label,
+            "Totale EUR": ce.filter(e => (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0).toFixed(2),
+            "N. Spese": ce.length,
+          };
+        }).filter(r => r["N. Spese"] > 0);
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allData), "Tutte le spese");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byEmpData), "Per dipendente");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byCatData), "Per categoria");
-        XLSX.writeFile(wb, `SpesApp_${today}.xlsx`);
+        XLSX.writeFile(wb, `SpesApp_${label}.xlsx`);
+        setShowExportPanel(false);
+      };
+
+      // Scorciatoie periodo
+      const setQuickRange = (type) => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const today = now.toISOString().split("T")[0];
+        if (type === "month") {
+          setExportDateFrom(`${y}-${m}-01`);
+          setExportDateTo(today);
+        } else if (type === "lastmonth") {
+          const lm = new Date(y, now.getMonth() - 1, 1);
+          const lmY = lm.getFullYear(), lmM = String(lm.getMonth() + 1).padStart(2, "0");
+          const lastDay = new Date(y, now.getMonth(), 0).getDate();
+          setExportDateFrom(`${lmY}-${lmM}-01`);
+          setExportDateTo(`${lmY}-${lmM}-${lastDay}`);
+        } else if (type === "year") {
+          setExportDateFrom(`${y}-01-01`);
+          setExportDateTo(today);
+        } else if (type === "week") {
+          const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+          setExportDateFrom(mon.toISOString().split("T")[0]);
+          setExportDateTo(today);
+        } else if (type === "all") {
+          setExportDateFrom(""); setExportDateTo("");
+        }
       };
 
       const TABS = [
@@ -1013,6 +1056,78 @@
                     <button onClick={() => setActiveTab("expenses")} style={{ background:"#f59e0b", border:"none", color:"#000", fontWeight:700, padding:"6px 12px", borderRadius:7, cursor:"pointer", fontSize:12 }}>Gestisci →</button>
                   </div>
                 )}
+
+                {/* ── Pannello Export Excel ── */}
+                <div style={{ marginTop:20, background:"#1e293b", borderRadius:16, border:"1px solid #334155", overflow:"hidden" }}>
+                  <button onClick={() => setShowExportPanel(p => !p)}
+                    style={{ width:"100%", padding:"14px 18px", background:"none", border:"none", display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:20 }}>📊</span>
+                      <div style={{ textAlign:"left" }}>
+                        <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>Export Excel</div>
+                        <div style={{ color:"#64748b", fontSize:11, marginTop:1 }}>
+                          {exportDateFrom || exportDateTo
+                            ? `${exportDateFrom||"inizio"} → ${exportDateTo||"oggi"}`
+                            : "Tutte le spese"}
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ color:"#64748b", fontSize:16, transition:"transform 0.2s", transform: showExportPanel ? "rotate(180deg)" : "none" }}>▼</span>
+                  </button>
+
+                  {showExportPanel && (
+                    <div style={{ padding:"0 18px 20px", borderTop:"1px solid #1e293b" }}>
+                      {/* Scorciatoie */}
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16, marginTop:14 }}>
+                        {[
+                          { label:"Questa settimana", key:"week" },
+                          { label:"Questo mese", key:"month" },
+                          { label:"Mese scorso", key:"lastmonth" },
+                          { label:"Quest'anno", key:"year" },
+                          { label:"Tutto", key:"all" },
+                        ].map(q => (
+                          <button key={q.key} onClick={() => setQuickRange(q.key)}
+                            style={{ padding:"5px 11px", borderRadius:20, border:"1px solid #334155", background:"#0f172a", color:"#94a3b8", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                            {q.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Selezione date */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+                        <div>
+                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DA</label>
+                          <input type="date" value={exportDateFrom} onChange={e => setExportDateFrom(e.target.value)}
+                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                        </div>
+                        <div>
+                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>A</label>
+                          <input type="date" value={exportDateTo} onChange={e => setExportDateTo(e.target.value)}
+                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                        </div>
+                      </div>
+
+                      {/* Anteprima conteggio */}
+                      {(() => {
+                        const count = expenses.filter(e =>
+                          (!exportDateFrom || e.date >= exportDateFrom) &&
+                          (!exportDateTo || e.date <= exportDateTo)
+                        ).length;
+                        return (
+                          <div style={{ background:"#0f172a", borderRadius:10, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <div style={{ color:"#64748b", fontSize:12 }}>Spese nel periodo selezionato</div>
+                            <div style={{ color:"#3b82f6", fontWeight:800, fontSize:16 }}>{count}</div>
+                          </div>
+                        );
+                      })()}
+
+                      <button onClick={() => exportExcel(exportDateFrom, exportDateTo)}
+                        style={{ width:"100%", padding:"13px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 4px 16px rgba(16,185,129,0.3)" }}>
+                        <span>📊</span> Scarica Excel
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -1028,7 +1143,7 @@
                       </button>
                     ))}
                   </div>
-                  <button onClick={exportExcel} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"#1e293b", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+                  <button onClick={() => { setActiveTab("dashboard"); setTimeout(() => setShowExportPanel(true), 100); }} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"#1e293b", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
                 </div>
 
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
