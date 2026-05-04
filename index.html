@@ -332,6 +332,7 @@
       const [ocring, setOcring] = useState(false);
       const [ocrError, setOcrError] = useState("");
       const [lightbox, setLightbox] = useState(false);
+      const [formError, setFormError] = useState("");
       const cameraRef = useRef();
       const galleryRef = useRef();
 
@@ -395,7 +396,11 @@
       const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setOcrError(""); setForm(f => ({ ...f, receipt:false })); };
 
       const handleSave = () => {
-        if (!form.amount || !form.description) return;
+        setFormError("");
+        if (!form.amount || !form.description) { setFormError("Inserisci importo e descrizione."); return; }
+        if (!form.sharedWith.trim()) { setFormError("Il campo Aziende/Fiere/Collaboratori è obbligatorio."); return; }
+        if (!form.visitReason) { setFormError("Seleziona il motivo della visita."); return; }
+        if (!form.place.trim()) { setFormError("Il campo Zona è obbligatorio."); return; }
         setSaving(true);
         setTimeout(() => {
           if (isEdit) {
@@ -407,7 +412,7 @@
         }, 300);
       };
 
-      const valid = form.amount && form.description;
+      const valid = form.amount && form.description && form.sharedWith.trim() && form.visitReason && form.place.trim();
 
       return (
         <>
@@ -485,9 +490,9 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>AZIENDE/FIERE/COLLABORATORI</label>
-                <input type="text" placeholder="Es: Rossi S.r.l., Fiera Milano..." value={form.sharedWith} onChange={e => setForm({...form, sharedWith:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>AZIENDE/FIERE/COLLABORATORI <span style={{color:"#ef4444"}}>*</span></label>
+                <input type="text" placeholder="Es: Rossi S.r.l., Fiera Milano..." value={form.sharedWith} onChange={e => { setForm({...form, sharedWith:e.target.value}); setFormError(""); }}
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.sharedWith.trim() ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
               </div>
 
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -500,9 +505,9 @@
                   </select>
                 </div>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MOTIVO VISITA</label>
-                  <select value={form.visitReason} onChange={e => setForm({...form, visitReason:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
+                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MOTIVO VISITA <span style={{color:"#ef4444"}}>*</span></label>
+                  <select value={form.visitReason} onChange={e => { setForm({...form, visitReason:e.target.value}); setFormError(""); }}
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.visitReason ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
                     <option value="">-- seleziona --</option>
                     <option value="fiera">🏢 Fiera</option>
                     <option value="assistenza">🔧 Assistenza tecnica</option>
@@ -512,9 +517,9 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>ZONA</label>
-                <input type="text" placeholder="Es: Milano, Francoforte, Budapest..." value={form.place} onChange={e => setForm({...form, place:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>ZONA <span style={{color:"#ef4444"}}>*</span></label>
+                <input type="text" placeholder="Es: Milano, Francoforte, Budapest..." value={form.place} onChange={e => { setForm({...form, place:e.target.value}); setFormError(""); }}
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.place.trim() ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
               </div>
 
               <div>
@@ -554,6 +559,7 @@
             </div>
 
             <div style={{ display:"flex", gap:10, marginTop:20, marginBottom:4 }}>
+              {formError && <div style={{ position:"absolute", left:20, right:20, bottom:80, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.4)", borderRadius:10, padding:"8px 12px", color:"#ef4444", fontSize:12, fontWeight:600 }}>⚠️ {formError}</div>}
               <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
               <button onClick={handleSave} disabled={!valid || saving || ocring}
                 style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid && !ocring ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#334155", color: valid && !ocring ? "#fff" : "#64748b", fontWeight:700, fontSize:15, cursor: valid && !ocring ? "pointer" : "default", boxShadow: valid && !ocring ? "0 4px 16px rgba(99,102,241,0.4)" : "none", transition:"all 0.2s" }}>
