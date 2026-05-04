@@ -885,9 +885,14 @@
         return acc;
       }, {});
 
-      const byCategory = CATEGORIES.map(cat => ({
-        ...cat, total: expenses.filter(e => e.category===cat.id).reduce((s,e) => s+e.amount, 0)
-      })).filter(c => c.total>0).sort((a,b) => b.total-a.total);
+      const byCategory = CATEGORIES.map(cat => {
+        const catExp = expenses.filter(e => e.category===cat.id);
+        const totalEur = catExp.filter(e => (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0);
+        const foreign = catExp.filter(e => (e.currency||"EUR")!=="EUR").reduce((acc,e) => {
+          acc[e.currency] = (acc[e.currency]||0) + e.amount; return acc;
+        }, {});
+        return { ...cat, total: totalEur, foreign, count: catExp.length };
+      }).filter(c => c.total>0 || Object.keys(c.foreign).length>0).sort((a,b) => b.total-a.total);
 
       const byEmployee = users.map(u => ({
         ...u,
@@ -950,11 +955,16 @@
 
         const byCatData = CATEGORIES.map(cat => {
           const ce = filtered.filter(e => e.category===cat.id);
-          return {
-            "Categoria": cat.label,
-            "Totale EUR": ce.filter(e => (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0).toFixed(2),
-            "N. Spese": ce.length,
-          };
+          const eurTot = ce.filter(e => (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0);
+          const row = { "Categoria": cat.label, "Totale EUR": eurTot.toFixed(2), "N. Spese": ce.length };
+          // Aggiungi colonne per valute estere presenti
+          ce.filter(e => (e.currency||"EUR")!=="EUR").forEach(e => {
+            row[`Totale ${e.currency}`] = ((row[`Totale ${e.currency}`]||0) + e.amount);
+          });
+          Object.keys(row).filter(k => k.startsWith("Totale ") && k!=="Totale EUR").forEach(k => {
+            row[k] = parseFloat(row[k]).toFixed(2);
+          });
+          return row;
         }).filter(r => r["N. Spese"] > 0);
 
         const wb = XLSX.utils.book_new();
@@ -1070,11 +1080,18 @@
                         <div key={cat.id} style={{ marginBottom:10 }}>
                           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
                             <span style={{ color:"#94a3b8", fontSize:12 }}>{cat.icon} {cat.label}</span>
-                            <span style={{ color:"#f1f5f9", fontWeight:600, fontSize:12 }}>{formatEur(cat.total)}</span>
+                            <div style={{ textAlign:"right" }}>
+                              {cat.total > 0 && <span style={{ color:"#f1f5f9", fontWeight:600, fontSize:12 }}>{formatEur(cat.total)}</span>}
+                              {Object.entries(cat.foreign||{}).map(([cur,tot]) => (
+                                <span key={cur} style={{ color:"#64748b", fontSize:11, marginLeft:6 }}>+{formatAmount(tot,cur)}</span>
+                              ))}
+                            </div>
                           </div>
-                          <div style={{ height:5, borderRadius:3, background:"#334155" }}>
-                            <div style={{ height:"100%", width:`${pct}%`, background:cat.color, borderRadius:3, transition:"width 0.8s" }} />
-                          </div>
+                          {cat.total > 0 && (
+                            <div style={{ height:5, borderRadius:3, background:"#334155" }}>
+                              <div style={{ height:"100%", width:`${pct}%`, background:cat.color, borderRadius:3, transition:"width 0.8s" }} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
