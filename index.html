@@ -877,7 +877,13 @@
       const eurAll   = expenses.filter(e => (e.currency||"EUR")==="EUR");
       const totalAll = eurAll.reduce((s,e) => s+e.amount, 0);
       const totalApproved = eurAll.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
-      const usdAll   = expenses.filter(e => e.currency==="USD").reduce((s,e) => s+e.amount, 0);
+      // Raggruppa tutte le valute non-EUR per totale e approvato
+      const foreignAll = expenses.filter(e => (e.currency||"EUR")!=="EUR").reduce((acc,e) => {
+        if (!acc[e.currency]) acc[e.currency] = { total:0, approved:0 };
+        acc[e.currency].total += e.amount;
+        if (e.status==="approved") acc[e.currency].approved += e.amount;
+        return acc;
+      }, {});
 
       const byCategory = CATEGORIES.map(cat => ({
         ...cat, total: expenses.filter(e => e.category===cat.id).reduce((s,e) => s+e.amount, 0)
@@ -887,7 +893,9 @@
         ...u,
         total: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && (e.currency||"EUR")==="EUR").reduce((s,e) => s+e.amount, 0),
         approved: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && (e.currency||"EUR")==="EUR" && e.status==="approved").reduce((s,e) => s+e.amount, 0),
-        totalUsd: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && e.currency==="USD").reduce((s,e) => s+e.amount, 0),
+        foreign: expenses.filter(e => (e.userName===u.name || e.userId==u.id) && (e.currency||"EUR")!=="EUR").reduce((acc,e) => {
+          acc[e.currency] = (acc[e.currency]||0) + e.amount; return acc;
+        }, {}),
         count: expenses.filter(e => e.userName===u.name || e.userId==u.id).length
       })).sort((a,b) => b.total-a.total);
 
@@ -1018,9 +1026,8 @@
               <>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
                   {[
-                    { label:"Totale €", value:formatEur(totalAll), icon:"💳", color:"#3b82f6" },
-                    { label:"Approvato €", value:formatEur(totalApproved), icon:"✅", color:"#10b981" },
-                    ...(usdAll > 0 ? [{ label:"Totale $", value:formatAmount(usdAll,"USD"), icon:"💵", color:"#10b981" }] : []),
+                    { label:"Totale EUR", value:formatEur(totalAll), icon:"💳", color:"#3b82f6" },
+                    { label:"Approvato EUR", value:formatEur(totalApproved), icon:"✅", color:"#10b981" },
                     { label:"In Attesa", value:`${pending.length} richieste`, icon:"⏳", color:"#f59e0b" },
                     { label:"Dipendenti", value:`${byEmployee.length} attivi`, icon:"👥", color:"#8b5cf6" },
                   ].map(k => (
@@ -1035,6 +1042,24 @@
                     </div>
                   ))}
                 </div>
+
+                {/* Valute estere */}
+                {Object.keys(foreignAll).length > 0 && (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
+                    {Object.entries(foreignAll).map(([cur, data]) => (
+                      <div key={cur} style={{ background:"#1e293b", borderRadius:14, padding:"16px 14px", border:"1px solid #334155" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:6, letterSpacing:0.5 }}>TOTALE {cur}</div>
+                            <div style={{ color:"#3b82f6", fontSize:18, fontWeight:800 }}>{formatAmount(data.total, cur)}</div>
+                            {data.approved > 0 && <div style={{ color:"#10b981", fontSize:11, marginTop:3 }}>✓ {formatAmount(data.approved, cur)} appr.</div>}
+                          </div>
+                          <span style={{ fontSize:20 }}>💱</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   <div style={{ background:"#1e293b", borderRadius:14, padding:18, border:"1px solid #334155" }}>
@@ -1063,12 +1088,13 @@
                           <div style={{ color:"#f1f5f9", fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
                           <div style={{ color:"#64748b", fontSize:11 }}>{emp.count} spese</div>
                         </div>
-                        <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13 }}>
-                            {formatEur(emp.total)}{emp.totalUsd > 0 && <span style={{color:"#64748b", fontSize:11, marginLeft:3}}>+{formatAmount(emp.totalUsd,"USD")}</span>}
+                          <div style={{ textAlign:"right", flexShrink:0 }}>
+                            <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13 }}>{formatEur(emp.total)}</div>
+                            {emp.approved > 0 && <div style={{ color:"#10b981", fontSize:11, marginTop:1 }}>✓ {formatEur(emp.approved)} appr.</div>}
+                            {Object.entries(emp.foreign||{}).map(([cur,tot]) => (
+                              <div key={cur} style={{ color:"#64748b", fontSize:11, marginTop:1 }}>+{formatAmount(tot,cur)}</div>
+                            ))}
                           </div>
-                          {emp.approved > 0 && <div style={{ color:"#10b981", fontSize:11, marginTop:1 }}>✓ {formatEur(emp.approved)} appr.</div>}
-                        </div>
                       </div>
                     ))}
                   </div>
