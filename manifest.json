@@ -1,17 +1,12 @@
 {
-  "name": "SpesApp \u2014 Alberici S.p.A.",
+  "name": "SpesApp — Alberici S.p.A.",
   "short_name": "SpesApp",
   "description": "Gestione Note Spese Alberici S.p.A.",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
-  "display_override": [
-    "standalone",
-    "fullscreen"
-  ],
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
-  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
@@ -25,10 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": [
-    "business",
-    "productivity"
-  ],
-  "lang": "it-IT"
+  ]
 }
