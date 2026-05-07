@@ -12,22 +12,64 @@
   <link rel="manifest" href="manifest.json" crossorigin="use-credentials" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
+
+    :root {
+      --bg: #f0f4ff;
+      --surface: #ffffff;
+      --surface2: #f8faff;
+      --border: #e2e8f8;
+      --text: #1a1f36;
+      --text2: #4a5568;
+      --text3: #94a3b8;
+
+      --blue: #4361ee;
+      --purple: #7209b7;
+      --pink: #f72585;
+      --orange: #f77f00;
+      --green: #06d6a0;
+      --red: #ef233c;
+      --yellow: #ffd60a;
+      --cyan: #4cc9f0;
+
+      --grad-main: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+      --grad-hot:  linear-gradient(135deg, #f72585 0%, #7209b7 100%);
+      --grad-warm: linear-gradient(135deg, #f77f00 0%, #f72585 100%);
+      --grad-cool: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+      --grad-green:linear-gradient(135deg, #06d6a0 0%, #4361ee 100%);
+    }
+
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: #0f172a;
-      color: #f1f5f9;
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
     }
-    input, button, select { font-family: inherit; }
+    input, button, select, textarea { font-family: inherit; }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pop { 0%{transform:scale(0.9);opacity:0} 100%{transform:scale(1);opacity:1} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes gradient-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+    .card { background:var(--surface); border-radius:20px; border:1px solid var(--border); box-shadow:0 4px 20px rgba(67,97,238,0.08); }
+    .btn-primary { background:var(--grad-main); color:#fff; border:none; border-radius:14px; font-weight:800; font-size:16px; cursor:pointer; box-shadow:0 4px 20px rgba(67,97,238,0.35); transition:transform 0.15s,box-shadow 0.15s; }
+    .btn-primary:active { transform:scale(0.97); box-shadow:0 2px 10px rgba(67,97,238,0.2); }
+    .btn-ghost { background:none; border:2px solid var(--border); border-radius:12px; color:var(--text2); font-weight:700; cursor:pointer; transition:all 0.15s; }
+
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--blue) !important; box-shadow:0 0 0 3px rgba(67,97,238,0.12); }
+
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
   </style>
 </head>
 <body>
@@ -182,20 +224,31 @@
 
     function StatusBadge({ status }) {
       const cfg = STATUS_CONFIG[status];
+      const gradients = {
+        pending:  "linear-gradient(135deg,#f77f00,#f72585)",
+        approved: "linear-gradient(135deg,#06d6a0,#4361ee)",
+        rejected: "linear-gradient(135deg,#ef233c,#7209b7)",
+      };
       return (
-        <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, color:cfg.color, background:cfg.bg, border:`1px solid ${cfg.color}40` }}>
-          <span style={{ width:5, height:5, borderRadius:"50%", background:cfg.dot, display:"inline-block" }} />
-          {cfg.label}
+        <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:20, fontSize:10, fontWeight:800, color:"#fff", background:gradients[status], letterSpacing:0.5 }}>
+          {status==="pending"?"⏳":status==="approved"?"✓":"✕"} {cfg.label.toUpperCase()}
         </span>
       );
     }
 
     function Avatar({ name, size = 36 }) {
       const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
-      const palette = ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899"];
-      const color = palette[name.charCodeAt(0) % palette.length];
+      const gradients = [
+        "linear-gradient(135deg,#4361ee,#7209b7)",
+        "linear-gradient(135deg,#f72585,#7209b7)",
+        "linear-gradient(135deg,#f77f00,#f72585)",
+        "linear-gradient(135deg,#06d6a0,#4361ee)",
+        "linear-gradient(135deg,#4cc9f0,#4361ee)",
+        "linear-gradient(135deg,#ffd60a,#f77f00)",
+      ];
+      const grad = gradients[name.charCodeAt(0) % gradients.length];
       return (
-        <div style={{ width:size, height:size, borderRadius:"50%", background:color, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:size*0.36, flexShrink:0, letterSpacing:-0.5 }}>
+        <div style={{ width:size, height:size, borderRadius:"50%", background:grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:size*0.38, flexShrink:0, letterSpacing:-0.5, boxShadow:`0 4px 12px rgba(67,97,238,0.3)` }}>
           {initials}
         </div>
       );
@@ -222,18 +275,18 @@
       if (!show) return null;
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       return (
-        <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:200, padding:"12px 16px 24px", background:"#1e293b", borderTop:"1px solid #334155", boxShadow:"0 -8px 32px rgba(0,0,0,0.4)" }}>
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:200, padding:"12px 16px 24px", background:"var(--grad-main)", boxShadow:"0 -8px 32px rgba(67,97,238,0.4)" }}>
           <div style={{ display:"flex", alignItems:"flex-start", gap:12, maxWidth:480, margin:"0 auto" }}>
             <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#3b82f6,#6366f1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>📱</div>
             <div style={{ flex:1 }}>
-              <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>Installa SpesApp</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:14 }}>Installa SpesApp</div>
               {isIOS && !deferredPrompt
-                ? <div style={{ color:"#94a3b8", fontSize:12, marginTop:3 }}>Tocca <strong style={{color:"#3b82f6"}}>Condividi</strong> → <strong style={{color:"#3b82f6"}}>Aggiungi a Home</strong></div>
-                : <div style={{ color:"#94a3b8", fontSize:12, marginTop:3 }}>Installala per usarla offline.</div>
+                ? <div style={{ color:"var(--text3)", fontSize:12, marginTop:3 }}>Tocca <strong style={{color:"#3b82f6"}}>Condividi</strong> → <strong style={{color:"#3b82f6"}}>Aggiungi a Home</strong></div>
+                : <div style={{ color:"rgba(255,255,255,0.75)", fontSize:12, marginTop:3, fontWeight:600 }}>Installala per usarla offline.</div>
               }
               {deferredPrompt && <button onClick={install} style={{ marginTop:8, padding:"8px 18px", borderRadius:8, border:"none", background:"linear-gradient(135deg,#3b82f6,#6366f1)", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Installa ora</button>}
             </div>
-            <button onClick={dismiss} style={{ background:"none", border:"none", color:"#64748b", fontSize:18, cursor:"pointer", padding:4 }}>✕</button>
+            <button onClick={dismiss} style={{ background:"none", border:"none", color:"var(--text2)", fontSize:18, cursor:"pointer", padding:4 }}>✕</button>
           </div>
         </div>
       );
@@ -252,10 +305,8 @@
         setError("");
         if (!email || !password) { setError("Inserisci email e password."); return; }
         setLoading(true);
-        // Prima cerca negli utenti hardcoded
         const hardcoded = USERS.find(u => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password);
         if (hardcoded) { onLogin(hardcoded); return; }
-        // Poi cerca su Supabase
         fetch("/api/db", { method:"POST", headers:{"Content-Type":"application/json"},
           body: JSON.stringify({ action:"listUsers" }) })
           .then(r => r.json())
@@ -268,52 +319,65 @@
               setLoading(false);
             }
           })
-          .catch(() => {
-            setError("Errore di connessione. Riprova.");
-            setLoading(false);
-          });
+          .catch(() => { setError("Errore di connessione. Riprova."); setLoading(false); });
       };
 
       return (
-        <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px" }}>
-          <div style={{ marginBottom:32, textAlign:"center", animation:"fadeUp 0.5s ease both" }}>
-            <div style={{ width:68, height:68, borderRadius:20, background:"linear-gradient(135deg,#3b82f6,#6366f1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, margin:"0 auto 14px", boxShadow:"0 8px 32px rgba(99,102,241,0.4)" }}>💼</div>
-            <h1 style={{ color:"#f8fafc", fontSize:26, fontWeight:800, margin:0, letterSpacing:-0.5 }}>SpesApp</h1>
-            <p style={{ color:"#64748b", margin:"5px 0 0", fontSize:13 }}>Alberici S.p.A. — Gestione Note Spese</p>
+        <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#4361ee 0%,#7209b7 40%,#f72585 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", position:"relative", overflow:"hidden" }}>
+          {/* Blob decorativi */}
+          <div style={{ position:"absolute", top:-80, right:-80, width:260, height:260, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", bottom:-60, left:-60, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }} />
+
+          {/* Logo */}
+          <div style={{ marginBottom:36, textAlign:"center", animation:"fadeUp 0.6s ease both" }}>
+            <div style={{ width:80, height:80, borderRadius:24, background:"rgba(255,255,255,0.2)", backdropFilter:"blur(10px)", border:"2px solid rgba(255,255,255,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:38, margin:"0 auto 14px", boxShadow:"0 12px 40px rgba(0,0,0,0.2)" }}>💼</div>
+            <h1 style={{ color:"#fff", fontSize:32, fontWeight:900, margin:0, letterSpacing:-1 }}>SpesApp</h1>
+            <p style={{ color:"rgba(255,255,255,0.75)", margin:"6px 0 0", fontSize:14, fontWeight:600 }}>Alberici S.p.A.</p>
           </div>
 
-          <div style={{ background:"#1e293b", borderRadius:20, padding:"28px 24px", width:"100%", maxWidth:380, border:"1px solid #334155", boxShadow:"0 24px 60px rgba(0,0,0,0.5)", animation:"fadeUp 0.5s 0.1s ease both" }}>
-            <div style={{ marginBottom:18 }}>
-              <label style={{ color:"#64748b", fontSize:11, fontWeight:700, display:"block", marginBottom:6, letterSpacing:0.6 }}>EMAIL</label>
+          <div style={{ background:"rgba(255,255,255,0.95)", backdropFilter:"blur(20px)", borderRadius:28, padding:"32px 24px", width:"100%", maxWidth:400, boxShadow:"0 30px 80px rgba(0,0,0,0.25)", animation:"fadeUp 0.6s 0.1s ease both" }}>
+            <h2 style={{ color:"var(--text)", fontSize:20, fontWeight:900, margin:"0 0 24px", textAlign:"center" }}>Accedi al tuo account</h2>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ color:"var(--text2)", fontSize:11, fontWeight:800, display:"block", marginBottom:7, letterSpacing:1 }}>📧 EMAIL</label>
               <input type="email" inputMode="email" autoComplete="email" placeholder="nome@alberici.net"
                 value={email} onChange={e => { setEmail(e.target.value); setError(""); }}
                 onKeyDown={e => e.key==="Enter" && handleLogin()}
-                style={{ width:"100%", padding:"13px 14px", borderRadius:11, border: error ? "1.5px solid #ef4444" : "1.5px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:15, outline:"none" }} />
+                style={{ width:"100%", padding:"14px 16px", borderRadius:14, border:`2px solid ${error ? "var(--red)" : "var(--border)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:15, fontWeight:600, transition:"all 0.2s" }} />
             </div>
-            <div style={{ marginBottom: error ? 10 : 20 }}>
-              <label style={{ color:"#64748b", fontSize:11, fontWeight:700, display:"block", marginBottom:6, letterSpacing:0.6 }}>PASSWORD</label>
+
+            <div style={{ marginBottom: error ? 12 : 24 }}>
+              <label style={{ color:"var(--text2)", fontSize:11, fontWeight:800, display:"block", marginBottom:7, letterSpacing:1 }}>🔑 PASSWORD</label>
               <div style={{ position:"relative" }}>
                 <input type={showPwd ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
                   value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
                   onKeyDown={e => e.key==="Enter" && handleLogin()}
-                  style={{ width:"100%", padding:"13px 44px 13px 14px", borderRadius:11, border: error ? "1.5px solid #ef4444" : "1.5px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:15, outline:"none" }} />
-                <button onClick={() => setShowPwd(p => !p)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:16, padding:2 }}>
+                  style={{ width:"100%", padding:"14px 48px 14px 16px", borderRadius:14, border:`2px solid ${error ? "var(--red)" : "var(--border)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:15, fontWeight:600, transition:"all 0.2s" }} />
+                <button onClick={() => setShowPwd(p => !p)} style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:18, lineHeight:1 }}>
                   {showPwd ? "🙈" : "👁️"}
                 </button>
               </div>
             </div>
-            {error && <div style={{ color:"#ef4444", fontSize:12, fontWeight:600, marginBottom:14, display:"flex", alignItems:"center", gap:5 }}>⚠️ {error}</div>}
-            <button onClick={handleLogin} disabled={loading}
-              style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background: loading ? "#334155" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: loading ? "#64748b" : "#fff", fontWeight:700, fontSize:15, cursor: loading ? "default" : "pointer", transition:"all 0.2s", boxShadow: loading ? "none" : "0 4px 20px rgba(99,102,241,0.4)", opacity: loading ? 0.7 : 1 }}>
-              {loading ? "Accesso..." : "Accedi"}
+
+            {error && (
+              <div style={{ background:"rgba(239,35,60,0.08)", border:"2px solid rgba(239,35,60,0.2)", borderRadius:12, padding:"10px 14px", color:"var(--red)", fontSize:13, fontWeight:700, marginBottom:16, display:"flex", alignItems:"center", gap:6 }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button onClick={handleLogin} disabled={loading} className="btn-primary"
+              style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", background: loading ? "var(--border)" : "var(--grad-main)", color: loading ? "var(--text3)" : "#fff", fontWeight:900, fontSize:16, cursor: loading ? "default" : "pointer", boxShadow: loading ? "none" : "0 8px 24px rgba(67,97,238,0.4)", transition:"all 0.2s", letterSpacing:0.5 }}>
+              {loading ? "⏳ Accesso in corso..." : "Accedi →"}
             </button>
-            <div style={{ textAlign:"center", marginTop:18, fontSize:12, color:"#475569" }}>
+
+            <div style={{ textAlign:"center", marginTop:20, fontSize:12, color:"var(--text3)", fontWeight:600 }}>
               Gestione Note Spese · {new Date().getFullYear()}
             </div>
           </div>
         </div>
       );
     }
+
 
     // ─── New Expense Modal ────────────────────────────────────────────────────────
 
@@ -416,12 +480,12 @@
 
       return (
         <>
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && onClose()}>
-          <div style={{ background:"#1e293b", borderRadius:"22px 22px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #334155", boxShadow:"0 -24px 60px rgba(0,0,0,0.6)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
-            <div style={{ width:36, height:4, borderRadius:2, background:"#334155", margin:"0 auto 18px" }} />
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-              <h2 style={{ color:"#f1f5f9", fontSize:17, fontWeight:800, margin:0 }}>{isEdit ? "Modifica Spesa" : "Nuova Spesa"}</h2>
-              <button onClick={onClose} style={{ background:"#0f172a", border:"1px solid #334155", color:"#94a3b8", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:13 }}>✕</button>
+        <div style={{ position:"fixed", inset:0, background:"rgba(67,97,238,0.15)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && onClose()}>
+          <div style={{ background:"var(--surface)", borderRadius:"28px 28px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, boxShadow:"0 -20px 60px rgba(67,97,238,0.2)", maxHeight:"92vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+            <div style={{ width:40, height:5, borderRadius:3, background:"var(--border)", margin:"0 auto 20px" }} />
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h2 style={{ color:"var(--text)", fontSize:18, fontWeight:900, margin:0 }}>{isEdit ? "✏️ Modifica Spesa" : "➕ Nuova Spesa"}</h2>
+              <button onClick={onClose} style={{ background:"var(--surface2)", border:"2px solid var(--border)", color:"var(--text2)", width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, fontWeight:800 }}>✕</button>
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -435,16 +499,16 @@
 
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DATA</label>
+                  <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>DATA</label>
                   <input type="date" value={form.date} onChange={e => setForm({...form, date:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                   {form.date && <div style={{ marginTop:4, fontSize:11, color:"#a5b4fc", fontWeight:700 }}>📅 Settimana {getWeekNumber(form.date)}</div>}
                 </div>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>IMPORTO {ocring && <span style={{color:"#6366f1"}}>⟳</span>}</label>
+                  <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>IMPORTO {ocring && <span style={{color:"#6366f1"}}>⟳</span>}</label>
                   <div style={{ display:"flex", gap:6 }}>
                     <select value={form.currency} onChange={e => setForm({...form, currency:e.target.value})}
-                      style={{ padding:"11px 8px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      style={{ padding:"11px 8px", borderRadius:10, border:"1px solid #334155", background:"var(--bg)", color:"var(--text)", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
                       <option value="EUR">€ EUR</option>
                       <option value="USD">$ USD</option>
                       <option value="TRY">₺ TRY</option>
@@ -465,18 +529,18 @@
                       <option value="CZK">Kč CZK</option>
                     </select>
                     <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount:e.target.value})}
-                      style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
+                      style={{ flex:1, padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"var(--surface2)", color:"var(--text)", fontSize:14, transition:"border 0.3s" }} />
                   </div>
                 </div>
 
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:7, letterSpacing:0.8 }}>CATEGORIA</label>
+                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:700, display:"block", marginBottom:7, letterSpacing:0.8 }}>CATEGORIA</label>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {CATEGORIES.map(cat => (
                     <button key={cat.id} onClick={() => setForm({...form, category:cat.id})}
-                      style={{ padding:"6px 11px", borderRadius:20, border:"2px solid", borderColor: form.category===cat.id ? cat.color : "#334155", background: form.category===cat.id ? `${cat.color}20` : "#0f172a", color: form.category===cat.id ? cat.color : "#64748b", fontSize:12, fontWeight:600, cursor:"pointer", transition:"all 0.15s" }}>
+                      style={{ padding:"8px 13px", borderRadius:20, border:"2px solid", borderColor: form.category===cat.id ? cat.color : "var(--border)", background: form.category===cat.id ? `${cat.color}20` : "var(--surface2)", color: form.category===cat.id ? cat.color : "var(--text2)", fontSize:12, fontWeight:800, cursor:"pointer", transition:"all 0.15s", boxShadow: form.category===cat.id ? `0 4px 12px ${cat.color}40` : "none" }}>
                       {cat.icon} {cat.label}
                     </button>
                   ))}
@@ -484,30 +548,30 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DESCRIZIONE {ocring && <span style={{color:"#6366f1"}}>⟳</span>}</label>
+                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>DESCRIZIONE {ocring && <span style={{color:"#6366f1"}}>⟳</span>}</label>
                 <input type="text" placeholder="Descrivi la spesa..." value={form.description} onChange={e => setForm({...form, description:e.target.value})}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, transition:"border 0.3s" }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border: ocring ? "1px solid #6366f1" : "1px solid #334155", background:"var(--surface2)", color:"var(--text)", fontSize:14, transition:"border 0.3s" }} />
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>AZIENDE/FIERE/COLLABORATORI <span style={{color:"#ef4444"}}>*</span></label>
+                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>AZIENDE/FIERE/COLLABORATORI <span style={{color:"#ef4444"}}>*</span></label>
                 <input type="text" placeholder="Es: Rossi S.r.l., Fiera Milano..." value={form.sharedWith} onChange={e => { setForm({...form, sharedWith:e.target.value}); setFormError(""); }}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.sharedWith.trim() ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.sharedWith.trim() ? "#ef4444" : "var(--border)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
               </div>
 
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MODALITÀ PAGAMENTO</label>
+                  <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>MODALITÀ PAGAMENTO</label>
                   <select value={form.paymentMethod} onChange={e => setForm({...form, paymentMethod:e.target.value})}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14, cursor:"pointer" }}>
                     <option value="carta">💳 Carta di credito</option>
                     <option value="cash">💵 Cash</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>MOTIVO VISITA <span style={{color:"#ef4444"}}>*</span></label>
+                  <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>MOTIVO VISITA <span style={{color:"#ef4444"}}>*</span></label>
                   <select value={form.visitReason} onChange={e => { setForm({...form, visitReason:e.target.value}); setFormError(""); }}
-                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.visitReason ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14, cursor:"pointer" }}>
+                    style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.visitReason ? "#ef4444" : "var(--border)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:14, cursor:"pointer" }}>
                     <option value="">-- seleziona --</option>
                     <option value="fiera">🏢 Fiera</option>
                     <option value="assistenza">🔧 Assistenza tecnica</option>
@@ -517,21 +581,21 @@
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>ZONA <span style={{color:"#ef4444"}}>*</span></label>
+                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>ZONA <span style={{color:"#ef4444"}}>*</span></label>
                 <input type="text" placeholder="Es: Milano, Francoforte, Budapest..." value={form.place} onChange={e => { setForm({...form, place:e.target.value}); setFormError(""); }}
-                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.place.trim() ? "#ef4444" : "#334155"}`, background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                  style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:`1px solid ${formError && !form.place.trim() ? "#ef4444" : "var(--border)"}`, background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
               </div>
 
               <div>
-                <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:8, letterSpacing:0.8 }}>SCONTRINO / RICEVUTA</label>
+                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:700, display:"block", marginBottom:8, letterSpacing:0.8 }}>SCONTRINO / RICEVUTA</label>
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handleFile} />
                 <input ref={galleryRef} type="file" accept="image/*,application/pdf" style={{ display:"none" }} onChange={handleFile} />
                 {!receiptPreview ? (
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                    <button onClick={() => cameraRef.current.click()} style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #334155", background:"#0f172a", color:"#94a3b8", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+                    <button onClick={() => cameraRef.current.click()} style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #334155", background:"var(--bg)", color:"var(--text3)", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:28 }}>📷</span><span>Fotocamera</span>
                     </button>
-                    <button onClick={() => galleryRef.current.click()} style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #334155", background:"#0f172a", color:"#94a3b8", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+                    <button onClick={() => galleryRef.current.click()} style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #334155", background:"var(--bg)", color:"var(--text3)", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:28 }}>🖼️</span><span>Galleria / PDF</span>
                     </button>
                   </div>
@@ -560,9 +624,9 @@
 
             <div style={{ display:"flex", gap:10, marginTop:20, marginBottom:4 }}>
               {formError && <div style={{ position:"absolute", left:20, right:20, bottom:80, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.4)", borderRadius:10, padding:"8px 12px", color:"#ef4444", fontSize:12, fontWeight:600 }}>⚠️ {formError}</div>}
-              <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:12, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+              <button onClick={onClose} style={{ flex:1, padding:13, borderRadius:14, border:"2px solid var(--border)", background:"none", color:"var(--text2)", fontWeight:800, cursor:"pointer" }}>Annulla</button>
               <button onClick={handleSave} disabled={!valid || saving || ocring}
-                style={{ flex:2, padding:13, borderRadius:12, border:"none", background: valid && !ocring ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "#334155", color: valid && !ocring ? "#fff" : "#64748b", fontWeight:700, fontSize:15, cursor: valid && !ocring ? "pointer" : "default", boxShadow: valid && !ocring ? "0 4px 16px rgba(99,102,241,0.4)" : "none", transition:"all 0.2s" }}>
+                style={{ flex:2, padding:13, borderRadius:14, border:"none", background: valid && !ocring ? "var(--grad-main)" : "var(--border)", color: valid && !ocring ? "#fff" : "var(--text3)", fontWeight:900, fontSize:15, cursor: valid && !ocring ? "pointer" : "default", boxShadow: valid && !ocring ? "0 8px 24px rgba(67,97,238,0.4)" : "none", transition:"all 0.2s" }}>
                 {ocring ? "⟳ Lettura..." : saving ? (isEdit ? "Salvo..." : "Invio...") : (isEdit ? "Salva Modifiche" : "Invia Spesa")}
               </button>
             </div>
@@ -589,19 +653,19 @@
       return (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(6px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:150 }}
           onClick={e => e.target===e.currentTarget && onClose()}>
-          <div style={{ background:"#1e293b", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #334155", borderTop:`3px solid ${accentColor}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
-            <div style={{ width:36, height:4, borderRadius:2, background:"#334155", margin:"0 auto 16px" }} />
+          <div style={{ background:"var(--surface)", borderRadius:"20px 20px 0 0", padding:"20px 20px 0", width:"100%", maxWidth:520, border:"1px solid #334155", borderTop:`3px solid ${accentColor}`, maxHeight:"85vh", overflowY:"auto", paddingBottom:"calc(24px + env(safe-area-inset-bottom,0px))" }}>
+            <div style={{ width:36, height:4, borderRadius:2, background:"var(--border)", margin:"0 auto 16px" }} />
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
               <div>
                 <div style={{ color:accentColor, fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>{isApproved ? "✓ Approvata" : "✕ Rifiutata"}</div>
-                <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:16 }}>{exp.description}</div>
+                <div style={{ color:"var(--text)", fontWeight:800, fontSize:16 }}>{exp.description}</div>
               </div>
-              <button onClick={onClose} style={{ background:"#0f172a", border:"1px solid #334155", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, flexShrink:0 }}>✕</button>
+              <button onClick={onClose} style={{ background:"var(--bg)", border:"1px solid #334155", color:"#888", width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, flexShrink:0 }}>✕</button>
             </div>
-            <div style={{ background:"#0f172a", borderRadius:14, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ background:"var(--bg)", borderRadius:14, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <div style={{ color:"#64748b", fontSize:13 }}>Importo</div>
-                <div style={{ color:"#64748b", fontSize:11, marginTop:2 }}>📅 Settimana {getWeekNumber(exp.date)}</div>
+                <div style={{ color:"var(--text2)", fontSize:13 }}>Importo</div>
+                <div style={{ color:"var(--text2)", fontSize:11, marginTop:2 }}>📅 Settimana {getWeekNumber(exp.date)}</div>
               </div>
               <div style={{ color:"#3b82f6", fontSize:22, fontWeight:900 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
             </div>
@@ -615,22 +679,22 @@
                 ...(exp.place ? [{ label:"Zona", value:"📍 "+exp.place }] : []),
                 { label:"Scontrino", value: exp.receipt ? "📎 Allegato" : "Non allegato" },
               ].map(d => (
-                <div key={d.label} style={{ background:"#0f172a", borderRadius:12, padding:"10px 12px" }}>
-                  <div style={{ color:"#64748b", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
-                  <div style={{ color:"#f1f5f9", fontSize:14, fontWeight:600 }}>{d.value}</div>
+                <div key={d.label} style={{ background:"var(--bg)", borderRadius:12, padding:"10px 12px" }}>
+                  <div style={{ color:"var(--text2)", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>{d.label}</div>
+                  <div style={{ color:"var(--text)", fontSize:14, fontWeight:600 }}>{d.value}</div>
                 </div>
               ))}
             </div>
             {exp.note && (
               <div style={{ background: isApproved ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border:`1px solid ${accentColor}30`, borderRadius:14, padding:"12px 14px", marginBottom:14 }}>
-                <div style={{ color:"#64748b", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
+                <div style={{ color:"var(--text2)", fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Nota amministratore</div>
                 <div style={{ color:accentColor, fontSize:14, fontWeight:600 }}>💬 {exp.note}</div>
               </div>
             )}
             {imgSrc && (
               <div style={{ borderRadius:14, overflow:"hidden", border:"1px solid #334155", marginBottom:14, cursor:"pointer" }} onClick={() => onViewReceipt(imgSrc)}>
                 <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
-                <div style={{ background:"#0f172a", padding:"7px 12px", color:"#64748b", fontSize:13 }}>📷 Tocca per ingrandire</div>
+                <div style={{ background:"var(--bg)", padding:"7px 12px", color:"var(--text2)", fontSize:13 }}>📷 Tocca per ingrandire</div>
               </div>
             )}
             <button onClick={onClose} style={{ width:"100%", padding:13, borderRadius:14, border:"1px solid #334155", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>Chiudi</button>
@@ -665,44 +729,51 @@
       }, {});
 
       return (
-        <div style={{ minHeight:"100vh", background:"#0f172a", paddingBottom:80 }}>
-          <div style={{ background:"#1e293b", borderBottom:"1px solid #334155", padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#3b82f6,#6366f1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>💼</div>
-              <div>
-                <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:14 }}>SpesApp</div>
-                <div style={{ color:"#64748b", fontSize:11 }}>Le mie spese</div>
+        <div style={{ minHeight:"100vh", background:"var(--bg)", paddingBottom:80 }}>
+          {/* Header con gradient */}
+          <div style={{ background:"var(--grad-main)", padding:"16px 16px 60px", position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", top:-30, right:-30, width:140, height:140, borderRadius:"50%", background:"rgba(255,255,255,0.1)" }} />
+            <div style={{ position:"absolute", bottom:-50, left:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)" }} />
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", position:"relative" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:36, height:36, borderRadius:12, background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>💼</div>
+                <div>
+                  <div style={{ color:"#fff", fontWeight:900, fontSize:16, letterSpacing:-0.5 }}>SpesApp</div>
+                  <div style={{ color:"rgba(255,255,255,0.75)", fontSize:11, fontWeight:600 }}>Le mie spese</div>
+                </div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <Avatar name={user.name} size={34} />
+                <button onClick={onLogout} style={{ background:"rgba(255,255,255,0.15)", border:"2px solid rgba(255,255,255,0.25)", color:"#fff", padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:11, fontWeight:800 }}>Esci</button>
               </div>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <Avatar name={user.name} size={32} />
-              <button onClick={onLogout} style={{ background:"none", border:"1px solid #334155", color:"#94a3b8", padding:"5px 10px", borderRadius:7, cursor:"pointer", fontSize:11, fontWeight:600 }}>Esci</button>
+            <div style={{ marginTop:16, position:"relative" }}>
+              <h1 style={{ color:"#fff", fontSize:22, fontWeight:900, margin:0, letterSpacing:-0.5 }}>Ciao, {user.name.split(" ")[0]}! 👋</h1>
+              <p style={{ color:"rgba(255,255,255,0.75)", margin:"4px 0 0", fontSize:13, fontWeight:600 }}>Riepilogo note spese</p>
             </div>
           </div>
 
-          <div style={{ maxWidth:600, margin:"0 auto", padding:"20px 14px" }}>
-            <div style={{ marginBottom:20 }}>
-              <h1 style={{ color:"#f8fafc", fontSize:20, fontWeight:800, margin:0 }}>Ciao, {user.name.split(" ")[0]} 👋</h1>
-              <p style={{ color:"#64748b", margin:"3px 0 0", fontSize:13 }}>Riepilogo note spese</p>
-            </div>
+          <div style={{ maxWidth:600, margin:"-40px auto 0", padding:"0 14px 100px", position:"relative", zIndex:1 }}>
+
 
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:20 }}>
               {[
-                { label:"Totale EUR", value:formatEur(total), color:"#3b82f6" },
-                { label:"Approvato", value:formatEur(approved), color:"#10b981" },
-                { label:"In attesa", value:formatEur(pending), color:"#f59e0b" },
+                { label:"Totale", value:formatEur(total), grad:"var(--grad-main)", icon:"💳" },
+                { label:"Approvato", value:formatEur(approved), grad:"var(--grad-green)", icon:"✅" },
+                { label:"In attesa", value:formatEur(pending), grad:"var(--grad-warm)", icon:"⏳" },
               ].map(s => (
-                <div key={s.label} style={{ background:"#1e293b", borderRadius:14, padding:"14px 12px", border:"1px solid #334155" }}>
-                  <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:5, letterSpacing:0.5 }}>{s.label.toUpperCase()}</div>
-                  <div style={{ color:s.color, fontSize:15, fontWeight:800 }}>{s.value}</div>
+                <div key={s.label} style={{ background:s.grad, borderRadius:18, padding:"14px 10px", boxShadow:"0 6px 20px rgba(67,97,238,0.2)" }}>
+                  <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+                  <div style={{ color:"rgba(255,255,255,0.8)", fontSize:9, fontWeight:800, letterSpacing:0.8 }}>{s.label.toUpperCase()}</div>
+                  <div style={{ color:"#fff", fontSize:13, fontWeight:900, marginTop:2, lineHeight:1.2 }}>{s.value}</div>
                 </div>
               ))}
             </div>
             {Object.keys(foreignTotals).length > 0 && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
                 {Object.entries(foreignTotals).map(([cur, tot]) => (
-                  <div key={cur} style={{ background:"#1e293b", borderRadius:12, padding:"10px 14px", border:"1px solid #334155", minWidth:120 }}>
-                    <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:4 }}>TOTALE {cur}</div>
+                  <div key={cur} style={{ background:"var(--surface)", borderRadius:12, padding:"10px 14px", border:"1px solid #334155", minWidth:120 }}>
+                    <div style={{ color:"var(--text2)", fontSize:10, fontWeight:700, marginBottom:4 }}>TOTALE {cur}</div>
                     <div style={{ color:"#3b82f6", fontSize:15, fontWeight:800 }}>{formatAmount(tot, cur)}</div>
                     {foreignApproved[cur] && <div style={{ color:"#10b981", fontSize:11, marginTop:2 }}>✓ {formatAmount(foreignApproved[cur], cur)} appr.</div>}
                   </div>
@@ -710,13 +781,13 @@
               </div>
             )}
 
-            <button onClick={() => setShowModal(true)} style={{ width:"100%", padding:14, borderRadius:14, border:"2px dashed #334155", background:"rgba(59,130,246,0.05)", color:"#3b82f6", fontWeight:700, fontSize:15, cursor:"pointer", marginBottom:18, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-              <span style={{ fontSize:20, lineHeight:1 }}>+</span> Nuova Nota Spesa
+            <button onClick={() => setShowModal(true)} style={{ width:"100%", padding:"16px", borderRadius:18, border:"none", background:"var(--grad-hot)", color:"#fff", fontWeight:900, fontSize:16, cursor:"pointer", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:"0 8px 24px rgba(247,37,133,0.4)", letterSpacing:0.3 }}>
+              <span style={{ fontSize:22 }}>➕</span> Nuova Nota Spesa
             </button>
 
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {myExpenses.length===0 && (
-                <div style={{ textAlign:"center", padding:40, color:"#64748b" }}>
+                <div style={{ textAlign:"center", padding:40, color:"var(--text2)" }}>
                   <div style={{ fontSize:36, marginBottom:10 }}>📭</div>
                   <div>Nessuna spesa inserita</div>
                 </div>
@@ -726,32 +797,32 @@
                 const canEdit = true;
                 const canView = false;
                 return (
-                  <div key={exp.id} style={{ background:"#1e293b", borderRadius:14, border:"1px solid #334155", overflow:"hidden" }}>
-                    <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}
+                  <div key={exp.id} style={{ background:"var(--surface)", borderRadius:20, border:"1px solid var(--border)", overflow:"hidden", boxShadow:"0 4px 16px rgba(67,97,238,0.07)", animation:"fadeUp 0.3s ease both" }}>
+                    <div style={{ padding:"16px", display:"flex", alignItems:"center", gap:12 }}
                       onClick={() => canView && setViewingExpense(exp)}>
                       {exp.receiptFull || exp.receiptPreview ? (
                         <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={e => { e.stopPropagation(); setViewReceipt(exp.receiptFull || exp.receiptPreview); }}
-                          style={{ width:46, height:46, borderRadius:10, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
+                          style={{ width:52, height:52, borderRadius:14, objectFit:"cover", border:"3px solid var(--green)", flexShrink:0, cursor:"pointer", boxShadow:"0 4px 12px rgba(6,214,160,0.3)" }} />
                       ) : (
-                        <div style={{ width:46, height:46, borderRadius:10, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
+                        <div style={{ width:52, height:52, borderRadius:14, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, border:`2px solid ${cat.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{cat.icon}</div>
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
-                        <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} <span style={{background:"rgba(99,102,241,0.15)",color:"#a5b4fc",fontSize:10,fontWeight:700,padding:"1px 5px",borderRadius:4}}>Sett.{getWeekNumber(exp.date)}</span>{exp.place ? ` · 📍 ${exp.place}` : ""}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
+                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
+                        <div style={{ color:"var(--text2)", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} <span style={{background:"rgba(99,102,241,0.15)",color:"#a5b4fc",fontSize:10,fontWeight:700,padding:"1px 5px",borderRadius:4}}>Sett.{getWeekNumber(exp.date)}</span>{exp.place ? ` · 📍 ${exp.place}` : ""}{exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}{exp.receipt ? " · 📎" : ""}</div>
                         {exp.note && <div style={{ color:"#f59e0b", fontSize:11, marginTop:2 }}>⚠️ {exp.note}</div>}
                       </div>
                       <div style={{ textAlign:"right", flexShrink:0, minWidth:0, maxWidth:"40%" }}>
-                        <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:15 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:15 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
                         <div style={{ marginTop:4 }}><StatusBadge status={exp.status} /></div>
                       </div>
                     </div>
                     {canEdit && (
-                      <div style={{ display:"flex", borderTop:"1px solid #0f172a" }}>
-                        <button onClick={() => setEditingExpense(exp)} style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#3b82f6", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                      <div style={{ display:"flex", borderTop:"1px solid var(--border)", background:"var(--surface2)" }}>
+                        <button onClick={() => setEditingExpense(exp)} style={{ flex:1, padding:"10px", background:"none", border:"none", color:"var(--blue)", fontWeight:800, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                           ✏️ Modifica
                         </button>
-                        <div style={{ width:1, background:"#0f172a" }} />
-                        <button onClick={() => setDeletingExpense(exp)} style={{ flex:1, padding:"9px", background:"none", border:"none", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                        <div style={{ width:1, background:"var(--border)" }} />
+                        <button onClick={() => setDeletingExpense(exp)} style={{ flex:1, padding:"10px", background:"none", border:"none", color:"var(--red)", fontWeight:800, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                           🗑️ Elimina
                         </button>
                       </div>
@@ -767,14 +838,14 @@
 
           {deletingExpense && (
             <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
-              <div style={{ background:"#1e293b", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
+              <div style={{ background:"var(--surface)", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
                 <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
-                <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Elimina spesa?</h3>
-                <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatAmount(deletingExpense.amount, deletingExpense.currency||"EUR")}</p>
+                <h3 style={{ color:"var(--text)", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 6px" }}>Elimina spesa?</h3>
+                <p style={{ color:"var(--text2)", fontSize:13, textAlign:"center", margin:"0 0 20px" }}>"{deletingExpense.description}" — {formatAmount(deletingExpense.amount, deletingExpense.currency||"EUR")}</p>
                 {deletingExpense.status === "approved" && <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"8px 12px", marginBottom:14, color:"#f59e0b", fontSize:12, fontWeight:600, textAlign:"center" }}>⚠️ Questa spesa è già stata approvata dall'admin</div>}
                 {deletingExpense.status === "rejected" && <div style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:10, padding:"8px 12px", marginBottom:14, color:"#ef4444", fontSize:12, fontWeight:600, textAlign:"center" }}>⚠️ Questa spesa è stata rifiutata dall'admin</div>}
                 <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                  <button onClick={() => setDeletingExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"var(--text3)", fontWeight:600, cursor:"pointer" }}>Annulla</button>
                   <button onClick={() => { onDeleteExpense(deletingExpense.id); setDeletingExpense(null); }} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Elimina</button>
                 </div>
               </div>
@@ -1015,45 +1086,49 @@
       ];
 
       return (
-        <div style={{ minHeight:"100vh", background:"#0f172a", paddingBottom:60 }}>
-          <div style={{ background:"#1e293b", borderBottom:"1px solid #334155", position:"sticky", top:0, zIndex:10 }}>
-            <div style={{ padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ minHeight:"100vh", background:"var(--bg)", paddingBottom:60 }}>
+          {/* Admin Header gradient */}
+          <div style={{ background:"var(--grad-main)", position:"sticky", top:0, zIndex:10, boxShadow:"0 4px 20px rgba(67,97,238,0.3)" }}>
+            <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#3b82f6,#6366f1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>💼</div>
-                <div style={{ color:"#f1f5f9", fontWeight:800, fontSize:14 }}>SpesApp <span style={{ color:"#6366f1", fontSize:10, fontWeight:700, background:"rgba(99,102,241,0.15)", padding:"2px 6px", borderRadius:5, marginLeft:3 }}>ADMIN</span></div>
+                <div style={{ width:36, height:36, borderRadius:12, background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>💼</div>
+                <div>
+                  <div style={{ color:"#fff", fontWeight:900, fontSize:15, letterSpacing:-0.5 }}>SpesApp</div>
+                  <div style={{ color:"rgba(255,255,255,0.75)", fontSize:10, fontWeight:800, letterSpacing:1 }}>PANNELLO ADMIN</div>
+                </div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <Avatar name={user.name} size={30} />
-                <button onClick={onLogout} style={{ background:"none", border:"1px solid #334155", color:"#94a3b8", padding:"5px 10px", borderRadius:7, cursor:"pointer", fontSize:11, fontWeight:600 }}>Esci</button>
+                <Avatar name={user.name} size={32} />
+                <button onClick={onLogout} style={{ background:"rgba(255,255,255,0.15)", border:"2px solid rgba(255,255,255,0.25)", color:"#fff", padding:"5px 12px", borderRadius:20, cursor:"pointer", fontSize:11, fontWeight:800 }}>Esci</button>
               </div>
             </div>
-            <div style={{ display:"flex", gap:0, paddingLeft:8 }}>
+            <div style={{ display:"flex", gap:0, paddingLeft:6, paddingBottom:2 }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ padding:"10px 14px", border:"none", background:"none", color: activeTab===t.id ? "#3b82f6" : "#64748b", fontWeight:700, fontSize:13, cursor:"pointer", borderBottom: activeTab===t.id ? "2px solid #3b82f6" : "2px solid transparent", transition:"all 0.15s" }}>
+                  style={{ padding:"10px 14px", border:"none", background:"none", color: activeTab===t.id ? "#fff" : "rgba(255,255,255,0.6)", fontWeight:800, fontSize:13, cursor:"pointer", borderBottom: activeTab===t.id ? "3px solid #fff" : "3px solid transparent", transition:"all 0.15s" }}>
                   {t.icon} {t.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={{ maxWidth:800, margin:"0 auto", padding:"20px 14px" }}>
+          <div style={{ maxWidth:800, margin:"0 auto", padding:"20px 14px 80px" }}>
             {activeTab==="dashboard" && (
               <>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
                   {[
-                    { label:"Totale EUR", value:formatEur(totalAll), icon:"💳", color:"#3b82f6" },
-                    { label:"Approvato EUR", value:formatEur(totalApproved), icon:"✅", color:"#10b981" },
-                    { label:"In Attesa", value:`${pending.length} richieste`, icon:"⏳", color:"#f59e0b" },
-                    { label:"Dipendenti", value:`${byEmployee.length} attivi`, icon:"👥", color:"#8b5cf6" },
+                    { label:"Totale EUR", value:formatEur(totalAll), icon:"💳", grad:"var(--grad-main)" },
+                    { label:"Approvato EUR", value:formatEur(totalApproved), icon:"✅", grad:"var(--grad-green)" },
+                    { label:"In Attesa", value:`${pending.length} richieste`, icon:"⏳", grad:"var(--grad-warm)" },
+                    { label:"Dipendenti", value:`${byEmployee.length} attivi`, icon:"👥", grad:"var(--grad-cool)" },
                   ].map(k => (
-                    <div key={k.label} style={{ background:"#1e293b", borderRadius:14, padding:"16px 14px", border:"1px solid #334155" }}>
+                    <div key={k.label} style={{ background:k.grad, borderRadius:18, padding:"16px 14px", boxShadow:"0 6px 20px rgba(67,97,238,0.2)" }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                         <div>
-                          <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:6, letterSpacing:0.5 }}>{k.label.toUpperCase()}</div>
-                          <div style={{ color:k.color, fontSize:18, fontWeight:800 }}>{k.value}</div>
+                          <div style={{ color:"rgba(255,255,255,0.75)", fontSize:9, fontWeight:800, marginBottom:8, letterSpacing:1 }}>{k.label.toUpperCase()}</div>
+                          <div style={{ color:"#fff", fontSize:17, fontWeight:900, lineHeight:1.2 }}>{k.value}</div>
                         </div>
-                        <span style={{ fontSize:20 }}>{k.icon}</span>
+                        <span style={{ fontSize:24 }}>{k.icon}</span>
                       </div>
                     </div>
                   ))}
@@ -1063,14 +1138,14 @@
                 {Object.keys(foreignAll).length > 0 && (
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
                     {Object.entries(foreignAll).map(([cur, data]) => (
-                      <div key={cur} style={{ background:"#1e293b", borderRadius:14, padding:"16px 14px", border:"1px solid #334155" }}>
+                      <div key={cur} style={{ background:"linear-gradient(135deg,#4cc9f0,#4361ee)", borderRadius:18, padding:"16px 14px", boxShadow:"0 6px 20px rgba(76,201,240,0.3)" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ color:"#64748b", fontSize:10, fontWeight:700, marginBottom:6, letterSpacing:0.5 }}>TOTALE {cur}</div>
-                            <div style={{ color:"#3b82f6", fontSize:18, fontWeight:800 }}>{formatAmount(data.total, cur)}</div>
-                            {data.approved > 0 && <div style={{ color:"#10b981", fontSize:11, marginTop:3 }}>✓ {formatAmount(data.approved, cur)} appr.</div>}
+                            <div style={{ color:"rgba(255,255,255,0.75)", fontSize:9, fontWeight:800, marginBottom:8, letterSpacing:1 }}>TOTALE {cur}</div>
+                            <div style={{ color:"#fff", fontSize:17, fontWeight:900 }}>{formatAmount(data.total, cur)}</div>
+                            {data.approved > 0 && <div style={{ color:"rgba(255,255,255,0.8)", fontSize:11, marginTop:4 }}>✓ {formatAmount(data.approved, cur)} appr.</div>}
                           </div>
-                          <span style={{ fontSize:20 }}>💱</span>
+                          <span style={{ fontSize:24 }}>💱</span>
                         </div>
                       </div>
                     ))}
@@ -1078,23 +1153,23 @@
                 )}
 
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                  <div style={{ background:"#1e293b", borderRadius:14, padding:18, border:"1px solid #334155" }}>
-                    <h3 style={{ color:"#f1f5f9", fontSize:13, fontWeight:700, margin:"0 0 14px" }}>Per Categoria</h3>
+                  <div style={{ background:"var(--surface)", borderRadius:20, padding:18, border:"1px solid var(--border)", boxShadow:"0 4px 20px rgba(67,97,238,0.08)" }}>
+                    <h3 style={{ color:"var(--text)", fontSize:13, fontWeight:900, margin:"0 0 14px", letterSpacing:-0.3 }}>📊 Per Categoria</h3>
                     {byCategory.map(cat => {
                       const pct = totalAll>0 ? (cat.total/totalAll)*100 : 0;
                       return (
                         <div key={cat.id} style={{ marginBottom:10 }}>
                           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                            <span style={{ color:"#94a3b8", fontSize:12 }}>{cat.icon} {cat.label}</span>
+                            <span style={{ color:"var(--text3)", fontSize:12 }}>{cat.icon} {cat.label}</span>
                             <div style={{ textAlign:"right" }}>
-                              {cat.total > 0 && <span style={{ color:"#f1f5f9", fontWeight:600, fontSize:12 }}>{formatEur(cat.total)}</span>}
+                              {cat.total > 0 && <span style={{ color:"var(--text)", fontWeight:600, fontSize:12 }}>{formatEur(cat.total)}</span>}
                               {Object.entries(cat.foreign||{}).map(([cur,tot]) => (
-                                <span key={cur} style={{ color:"#64748b", fontSize:11, marginLeft:6 }}>+{formatAmount(tot,cur)}</span>
+                                <span key={cur} style={{ color:"var(--text2)", fontSize:11, marginLeft:6 }}>+{formatAmount(tot,cur)}</span>
                               ))}
                             </div>
                           </div>
                           {cat.total > 0 && (
-                            <div style={{ height:5, borderRadius:3, background:"#334155" }}>
+                            <div style={{ height:5, borderRadius:3, background:"var(--border)" }}>
                               <div style={{ height:"100%", width:`${pct}%`, background:cat.color, borderRadius:3, transition:"width 0.8s" }} />
                             </div>
                           )}
@@ -1102,20 +1177,20 @@
                       );
                     })}
                   </div>
-                  <div style={{ background:"#1e293b", borderRadius:14, padding:18, border:"1px solid #334155" }}>
-                    <h3 style={{ color:"#f1f5f9", fontSize:13, fontWeight:700, margin:"0 0 14px" }}>Per Dipendente</h3>
+                  <div style={{ background:"var(--surface)", borderRadius:20, padding:18, border:"1px solid var(--border)", boxShadow:"0 4px 20px rgba(67,97,238,0.08)" }}>
+                    <h3 style={{ color:"var(--text)", fontSize:13, fontWeight:900, margin:"0 0 14px", letterSpacing:-0.3 }}>👥 Per Dipendente</h3>
                     {byEmployee.map(emp => (
                       <div key={emp.id} style={{ display:"flex", alignItems:"center", gap:9, marginBottom:10 }}>
                         <Avatar name={emp.name} size={30} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ color:"#f1f5f9", fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
-                          <div style={{ color:"#64748b", fontSize:11 }}>{emp.count} spese</div>
+                          <div style={{ color:"var(--text)", fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{emp.name}</div>
+                          <div style={{ color:"var(--text2)", fontSize:11 }}>{emp.count} spese</div>
                         </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
-                            <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13 }}>{formatEur(emp.total)}</div>
+                            <div style={{ color:"var(--text)", fontWeight:700, fontSize:13 }}>{formatEur(emp.total)}</div>
                             {emp.approved > 0 && <div style={{ color:"#10b981", fontSize:11, marginTop:1 }}>✓ {formatEur(emp.approved)} appr.</div>}
                             {Object.entries(emp.foreign||{}).map(([cur,tot]) => (
-                              <div key={cur} style={{ color:"#64748b", fontSize:11, marginTop:1 }}>+{formatAmount(tot,cur)}</div>
+                              <div key={cur} style={{ color:"var(--text2)", fontSize:11, marginTop:1 }}>+{formatAmount(tot,cur)}</div>
                             ))}
                           </div>
                       </div>
@@ -1124,28 +1199,28 @@
                 </div>
 
                 {pending.length>0 && (
-                  <div style={{ marginTop:16, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                    <div style={{ color:"#f59e0b", fontWeight:600, fontSize:13 }}>⏳ {pending.length} spese in attesa</div>
-                    <button onClick={() => setActiveTab("expenses")} style={{ background:"#f59e0b", border:"none", color:"#000", fontWeight:700, padding:"6px 12px", borderRadius:7, cursor:"pointer", fontSize:12 }}>Gestisci →</button>
+                  <div style={{ marginTop:16, background:"var(--grad-warm)", borderRadius:16, padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 6px 20px rgba(247,127,0,0.3)" }}>
+                    <div style={{ color:"#fff", fontWeight:800, fontSize:13 }}>⏳ {pending.length} spese in attesa</div>
+                    <button onClick={() => setActiveTab("expenses")} style={{ background:"rgba(255,255,255,0.25)", border:"2px solid rgba(255,255,255,0.4)", color:"#fff", fontWeight:900, padding:"6px 14px", borderRadius:20, cursor:"pointer", fontSize:12 }}>Gestisci →</button>
                   </div>
                 )}
 
                 {/* ── Pannello Export Excel ── */}
-                <div style={{ marginTop:20, background:"#1e293b", borderRadius:16, border:"1px solid #334155", overflow:"hidden" }}>
+                <div style={{ marginTop:20, background:"var(--surface)", borderRadius:20, border:"1px solid var(--border)", overflow:"hidden", boxShadow:"0 4px 20px rgba(67,97,238,0.08)" }}>
                   <button onClick={() => setShowExportPanel(p => !p)}
                     style={{ width:"100%", padding:"14px 18px", background:"none", border:"none", display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <span style={{ fontSize:20 }}>📊</span>
                       <div style={{ textAlign:"left" }}>
-                        <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>Export Excel</div>
-                        <div style={{ color:"#64748b", fontSize:11, marginTop:1 }}>
+                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:14 }}>Export Excel</div>
+                        <div style={{ color:"var(--text3)", fontSize:11, marginTop:1 }}>
                           {exportDateFrom || exportDateTo
                             ? `${exportDateFrom||"inizio"} → ${exportDateTo||"oggi"}`
                             : "Tutte le spese"}
                         </div>
                       </div>
                     </div>
-                    <span style={{ color:"#64748b", fontSize:16, transition:"transform 0.2s", transform: showExportPanel ? "rotate(180deg)" : "none" }}>▼</span>
+                    <span style={{ color:"var(--text2)", fontSize:16, transition:"transform 0.2s", transform: showExportPanel ? "rotate(180deg)" : "none" }}>▼</span>
                   </button>
 
                   {showExportPanel && (
@@ -1160,7 +1235,7 @@
                           { label:"Tutto", key:"all" },
                         ].map(q => (
                           <button key={q.key} onClick={() => setQuickRange(q.key)}
-                            style={{ padding:"5px 11px", borderRadius:20, border:"1px solid #334155", background:"#0f172a", color:"#94a3b8", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                            style={{ padding:"5px 11px", borderRadius:20, border:"1px solid #334155", background:"var(--bg)", color:"var(--text3)", fontSize:11, fontWeight:600, cursor:"pointer" }}>
                             {q.label}
                           </button>
                         ))}
@@ -1169,14 +1244,14 @@
                       {/* Selezione date */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
                         <div>
-                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>DA</label>
+                          <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>DA</label>
                           <input type="date" value={exportDateFrom} onChange={e => setExportDateFrom(e.target.value)}
-                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                         </div>
                         <div>
-                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>A</label>
+                          <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>A</label>
                           <input type="date" value={exportDateTo} onChange={e => setExportDateTo(e.target.value)}
-                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                            style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                         </div>
                       </div>
 
@@ -1187,8 +1262,8 @@
                           (!exportDateTo || e.date <= exportDateTo)
                         ).length;
                         return (
-                          <div style={{ background:"#0f172a", borderRadius:10, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                            <div style={{ color:"#64748b", fontSize:12 }}>Spese nel periodo selezionato</div>
+                          <div style={{ background:"var(--bg)", borderRadius:10, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                            <div style={{ color:"var(--text2)", fontSize:12 }}>Spese nel periodo selezionato</div>
                             <div style={{ color:"#3b82f6", fontWeight:800, fontSize:16 }}>{count}</div>
                           </div>
                         );
@@ -1210,51 +1285,51 @@
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {["all","pending","approved","rejected"].map(s => (
                       <button key={s} onClick={() => setFilterStatus(s)}
-                        style={{ padding:"6px 12px", borderRadius:20, border:"1px solid", borderColor: filterStatus===s ? "#3b82f6" : "#334155", background: filterStatus===s ? "rgba(59,130,246,0.15)" : "none", color: filterStatus===s ? "#3b82f6" : "#64748b", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                        style={{ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor: filterStatus===s ? "var(--blue)" : "var(--border)", background: filterStatus===s ? "var(--blue)" : "var(--surface)", color: filterStatus===s ? "#fff" : "var(--text2)", fontSize:12, fontWeight:800, cursor:"pointer", boxShadow: filterStatus===s ? "0 4px 12px rgba(67,97,238,0.3)" : "none" }}>
                         {s==="all" ? "Tutte" : STATUS_CONFIG[s]?.label}
-                        {s==="pending" && pending.length>0 && <span style={{ marginLeft:3, background:"#f59e0b", color:"#000", fontSize:9, fontWeight:800, padding:"1px 4px", borderRadius:9 }}>{pending.length}</span>}
+                        {s==="pending" && pending.length>0 && <span style={{ marginLeft:4, background:"var(--orange)", color:"#fff", fontSize:9, fontWeight:900, padding:"1px 5px", borderRadius:9 }}>{pending.length}</span>}
                       </button>
                     ))}
                   </div>
-                  <button onClick={() => { setActiveTab("dashboard"); setTimeout(() => setShowExportPanel(true), 100); }} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"#1e293b", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+                  <button onClick={() => { setActiveTab("dashboard"); setTimeout(() => setShowExportPanel(true), 100); }} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
                 </div>
 
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {filtered.map(exp => {
                     const cat = getCatInfo(exp.category);
                     return (
-                      <div key={exp.id} style={{ background:"#1e293b", borderRadius:13, padding:"13px 14px", border: exp.status==="pending" ? "1px solid rgba(245,158,11,0.3)" : "1px solid #334155", display:"flex", alignItems:"center", gap:10 }}>
+                      <div key={exp.id} style={{ background:"var(--surface)", borderRadius:18, padding:"14px", border: exp.status==="pending" ? "2px solid rgba(247,127,0,0.4)" : "1px solid var(--border)", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 16px rgba(67,97,238,0.06)" }}>
                         {exp.receiptFull || exp.receiptPreview ? (
                           <img src={exp.receiptFull || exp.receiptPreview} alt="" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
-                            style={{ width:40, height:40, borderRadius:9, objectFit:"cover", border:"2px solid #10b981", flexShrink:0, cursor:"pointer" }} />
+                            style={{ width:44, height:44, borderRadius:12, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
                         ) : (
-                          <div style={{ width:40, height:40, borderRadius:9, background:`${cat.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, flexShrink:0 }}>{cat.icon}</div>
+                          <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, border:`2px solid ${cat.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
                         )}
                         <Avatar name={exp.userName} size={30} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ color:"#f1f5f9", fontWeight:600, fontSize:13 }}>{exp.description}</div>
-                          <div style={{ color:"#64748b", fontSize:11, marginTop:1 }}>
+                          <div style={{ color:"var(--text)", fontWeight:600, fontSize:13 }}>{exp.description}</div>
+                          <div style={{ color:"var(--text2)", fontSize:11, marginTop:1 }}>
                             {exp.userName} · {exp.date} <span style={{background:"rgba(99,102,241,0.15)",color:"#a5b4fc",fontSize:10,fontWeight:700,padding:"1px 5px",borderRadius:4,marginLeft:2}}>Sett.{getWeekNumber(exp.date)}</span> · {cat.label}
                             {exp.place ? ` · 📍 ${exp.place}` : ""}
                             {exp.sharedWith ? ` · 👥 ${exp.sharedWith}` : ""}
                             {exp.visitReason ? ` · ${{fiera:"🏢 Fiera", assistenza:"🔧 Assistenza", cliente:"🤝 Cliente/Potenziale cliente"}[exp.visitReason]||exp.visitReason}` : ""}
                             {!exp.receipt && <span style={{ color:"#ef4444" }}> · ⚠️ no scontrino</span>}
                           </div>
-                          {exp.note && <div style={{ color:"#94a3b8", fontSize:11 }}>💬 {exp.note}</div>}
+                          {exp.note && <div style={{ color:"var(--text3)", fontSize:11 }}>💬 {exp.note}</div>}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0, minWidth:0, maxWidth:"40%" }}>
-                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:13, marginBottom:3, whiteSpace:"nowrap" }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                          <div style={{ color:"var(--text)", fontWeight:700, fontSize:13, marginBottom:3, whiteSpace:"nowrap" }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
                           <StatusBadge status={exp.status} />
                         </div>
                         {exp.status==="pending" && (
                           <button onClick={() => { setSelectedExpense(exp); setNoteInput(""); }}
-                            style={{ marginLeft:4, padding:"6px 11px", borderRadius:7, border:"1px solid #3b82f6", background:"rgba(59,130,246,0.1)", color:"#3b82f6", fontWeight:600, fontSize:12, cursor:"pointer", flexShrink:0 }}>
-                            Esamina
+                            style={{ marginLeft:4, padding:"7px 12px", borderRadius:20, border:"none", background:"var(--grad-main)", color:"#fff", fontWeight:800, fontSize:11, cursor:"pointer", flexShrink:0, boxShadow:"0 4px 12px rgba(67,97,238,0.3)" }}>
+                            Esamina →
                           </button>
                         )}
                         {(exp.status==="approved" || exp.status==="rejected") && (
                           <button onClick={() => setViewingExpense(exp)}
-                            style={{ marginLeft:4, padding:"6px 11px", borderRadius:7, border:"1px solid #334155", background:"rgba(100,116,139,0.1)", color:"#94a3b8", fontWeight:600, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+                            style={{ marginLeft:4, padding:"7px 12px", borderRadius:20, border:"2px solid var(--border)", background:"var(--surface2)", color:"var(--text2)", fontWeight:700, fontSize:11, cursor:"pointer", flexShrink:0 }}>
                             Dettagli
                           </button>
                         )}
@@ -1268,29 +1343,29 @@
             {activeTab==="users" && (
               <>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-                  <h2 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:0 }}>Gestione Utenti</h2>
+                  <h2 style={{ color:"var(--text)", fontSize:17, fontWeight:900, margin:0 }}>👥 Gestione Utenti</h2>
                   <button onClick={() => { setShowAddUser(true); setUserError(""); setNewUser({ name:"", surname:"", email:"", password:"" }); }}
-                    style={{ padding:"8px 16px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#3b82f6,#6366f1)", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                    + Nuovo utente
+                    style={{ padding:"10px 18px", borderRadius:20, border:"none", background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:13, cursor:"pointer", boxShadow:"0 6px 16px rgba(67,97,238,0.35)" }}>
+                    ➕ Nuovo utente
                   </button>
                 </div>
 
                 {usersLoading ? (
-                  <div style={{ textAlign:"center", padding:40, color:"#64748b" }}>
+                  <div style={{ textAlign:"center", padding:40, color:"var(--text2)" }}>
                     <div style={{ width:24, height:24, border:"3px solid #3b82f6", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
                     <div>Caricamento utenti...</div>
                   </div>
                 ) : (
                   <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                     {users.map(u => (
-                      <div key={u.id} style={{ background:"#1e293b", borderRadius:14, padding:"14px 16px", border:"1px solid #334155", display:"flex", alignItems:"center", gap:12 }}>
+                      <div key={u.id} style={{ background:"var(--surface)", borderRadius:18, padding:"16px", border:"1px solid var(--border)", display:"flex", alignItems:"center", gap:12, boxShadow:"0 4px 16px rgba(67,97,238,0.07)" }}>
                         <Avatar name={u.name} size={40} />
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:14 }}>{u.name}</div>
-                          <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>{u.email}</div>
+                          <div style={{ color:"var(--text)", fontWeight:800, fontSize:14 }}>{u.name}</div>
+                          <div style={{ color:"var(--text3)", fontSize:12, marginTop:2, fontWeight:600 }}>{u.email}</div>
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-                          <span style={{ background:"rgba(59,130,246,0.15)", color:"#3b82f6", fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:20 }}>{u.role || "dipendente"}</span>
+                          <span style={{ background:"var(--grad-cool)", color:"#fff", fontSize:10, fontWeight:800, padding:"4px 10px", borderRadius:20 }}>{u.role || "dipendente"}</span>
                           <button onClick={() => setDeletingUser(u)}
                             style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #ef444440", background:"rgba(239,68,68,0.08)", color:"#ef4444", fontWeight:600, fontSize:12, cursor:"pointer" }}>
                             🗑️
@@ -1299,7 +1374,7 @@
                       </div>
                     ))}
                     {users.length === 0 && (
-                      <div style={{ textAlign:"center", padding:40, color:"#64748b" }}>
+                      <div style={{ textAlign:"center", padding:40, color:"var(--text2)" }}>
                         <div style={{ fontSize:36, marginBottom:10 }}>👥</div>
                         <div>Nessun utente presente</div>
                         <div style={{ fontSize:12, marginTop:6 }}>Clicca "+ Nuovo utente" per aggiungerne uno</div>
@@ -1311,39 +1386,39 @@
                 {/* Modal aggiungi utente */}
                 {showAddUser && (
                   <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
-                    <div style={{ background:"#1e293b", borderRadius:20, padding:"28px 24px", width:"100%", maxWidth:420, border:"1px solid #334155" }}>
-                      <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:"0 0 20px" }}>➕ Nuovo Utente</h3>
+                    <div style={{ background:"var(--surface)", borderRadius:24, padding:"28px 24px", width:"100%", maxWidth:420, boxShadow:"0 20px 60px rgba(67,97,238,0.2)" }}>
+                      <h3 style={{ color:"var(--text)", fontSize:17, fontWeight:900, margin:"0 0 24px" }}>➕ Nuovo Utente</h3>
 
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
                         <div>
-                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>NOME *</label>
+                          <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>NOME *</label>
                           <input type="text" placeholder="Mario" value={newUser.name} onChange={e => setNewUser({...newUser, name:e.target.value})}
-                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                         </div>
                         <div>
-                          <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>COGNOME *</label>
+                          <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>COGNOME *</label>
                           <input type="text" placeholder="Rossi" value={newUser.surname} onChange={e => setNewUser({...newUser, surname:e.target.value})}
-                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                            style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                         </div>
                       </div>
 
                       <div style={{ marginBottom:12 }}>
-                        <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>EMAIL *</label>
+                        <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>EMAIL *</label>
                         <input type="email" placeholder="mario.rossi@alberici.net" value={newUser.email} onChange={e => setNewUser({...newUser, email:e.target.value})}
-                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                       </div>
 
                       <div style={{ marginBottom: userError ? 10 : 20 }}>
-                        <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>PASSWORD *</label>
+                        <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>PASSWORD *</label>
                         <input type="text" placeholder="password sicura" value={newUser.password} onChange={e => setNewUser({...newUser, password:e.target.value})}
-                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                          style={{ width:"100%", padding:"11px 12px", borderRadius:10, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                       </div>
 
                       {userError && <div style={{ color:"#ef4444", fontSize:12, fontWeight:600, marginBottom:14 }}>⚠️ {userError}</div>}
 
                       <div style={{ display:"flex", gap:10 }}>
-                        <button onClick={() => setShowAddUser(false)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
-                        <button onClick={handleAddUser} disabled={userSaving} style={{ flex:2, padding:12, borderRadius:10, border:"none", background: userSaving ? "#334155" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: userSaving ? "#64748b" : "#fff", fontWeight:700, fontSize:15, cursor: userSaving ? "default" : "pointer", boxShadow: userSaving ? "none" : "0 4px 16px rgba(99,102,241,0.4)" }}>
+                        <button onClick={() => setShowAddUser(false)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"var(--text3)", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                        <button onClick={handleAddUser} disabled={userSaving} style={{ flex:2, padding:12, borderRadius:10, border:"none", background: userSaving ? "var(--border)" : "linear-gradient(135deg,#3b82f6,#6366f1)", color: userSaving ? "var(--text2)" : "#fff", fontWeight:700, fontSize:15, cursor: userSaving ? "default" : "pointer", boxShadow: userSaving ? "none" : "0 4px 16px rgba(99,102,241,0.4)" }}>
                           {userSaving ? "Salvataggio..." : "Aggiungi Utente"}
                         </button>
                       </div>
@@ -1354,16 +1429,16 @@
                 {/* Modal conferma eliminazione */}
                 {deletingUser && (
                   <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:150, padding:20 }}>
-                    <div style={{ background:"#1e293b", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
+                    <div style={{ background:"var(--surface)", borderRadius:18, padding:"24px 20px", width:"100%", maxWidth:360, border:"1px solid #334155" }}>
                       <div style={{ fontSize:32, textAlign:"center", marginBottom:12 }}>🗑️</div>
-                      <h3 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 8px" }}>Rimuovi utente?</h3>
-                      <p style={{ color:"#64748b", fontSize:13, textAlign:"center", margin:"0 0 6px" }}>{deletingUser.name}</p>
-                      <p style={{ color:"#64748b", fontSize:12, textAlign:"center", margin:"0 0 20px" }}>{deletingUser.email}</p>
+                      <h3 style={{ color:"var(--text)", fontSize:16, fontWeight:800, textAlign:"center", margin:"0 0 8px" }}>Rimuovi utente?</h3>
+                      <p style={{ color:"var(--text2)", fontSize:13, textAlign:"center", margin:"0 0 6px" }}>{deletingUser.name}</p>
+                      <p style={{ color:"var(--text2)", fontSize:12, textAlign:"center", margin:"0 0 20px" }}>{deletingUser.email}</p>
                       <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"8px 12px", marginBottom:16, color:"#f59e0b", fontSize:12, textAlign:"center" }}>
                         ⚠️ L'utente non potrà più accedere all'app
                       </div>
                       <div style={{ display:"flex", gap:10 }}>
-                        <button onClick={() => setDeletingUser(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer" }}>Annulla</button>
+                        <button onClick={() => setDeletingUser(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"var(--text3)", fontWeight:600, cursor:"pointer" }}>Annulla</button>
                         <button onClick={() => handleDeleteUser(deletingUser.id)} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:700, cursor:"pointer" }}>Rimuovi</button>
                       </div>
                     </div>
@@ -1375,30 +1450,30 @@
 
           {selectedExpense && (
             <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(5px)", display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100 }} onClick={e => e.target===e.currentTarget && setSelectedExpense(null)}>
-              <div style={{ background:"#1e293b", borderRadius:"22px 22px 0 0", padding:"20px 20px 32px", width:"100%", maxWidth:480, border:"1px solid #334155", maxHeight:"80vh", overflowY:"auto" }}>
-                <div style={{ width:36, height:4, borderRadius:2, background:"#334155", margin:"0 auto 16px" }} />
-                <h2 style={{ color:"#f1f5f9", fontSize:16, fontWeight:800, margin:"0 0 16px" }}>Esamina Spesa</h2>
-                <div style={{ background:"#0f172a", borderRadius:10, padding:14, marginBottom:12 }}>
-                  <div style={{ color:"#64748b", fontSize:11, marginBottom:3 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label}</div>
-                  <div style={{ color:"#f1f5f9", fontWeight:600, marginBottom:3 }}>{selectedExpense.description}</div>
-                  <div style={{ color:"#f1f5f9", fontSize:20, fontWeight:800 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency||"EUR")}</div>
-                  <div style={{ color:"#64748b", fontSize:11, marginTop:4 }}>👤 {selectedExpense.userName}{selectedExpense.sharedWith ? ` · 👥 ${selectedExpense.sharedWith}` : ""}{selectedExpense.place ? ` · 📍 ${selectedExpense.place}` : ""} {selectedExpense.receipt ? "· 📎 Scontrino" : "· ⚠️ No scontrino"}</div>
+              <div style={{ background:"var(--surface)", borderRadius:"28px 28px 0 0", padding:"20px 20px 32px", width:"100%", maxWidth:480, maxHeight:"80vh", overflowY:"auto" }}>
+                <div style={{ width:40, height:5, borderRadius:3, background:"var(--border)", margin:"0 auto 20px" }} />
+                <h2 style={{ color:"var(--text)", fontSize:17, fontWeight:900, margin:"0 0 18px" }}>🔍 Esamina Spesa</h2>
+                <div style={{ background:"var(--grad-main)", borderRadius:16, padding:16, marginBottom:14 }}>
+                  <div style={{ color:"rgba(255,255,255,0.75)", fontSize:11, marginBottom:4, fontWeight:700 }}>{selectedExpense.date} · {getCatInfo(selectedExpense.category).label} · Sett.{getWeekNumber(selectedExpense.date)}</div>
+                  <div style={{ color:"#fff", fontWeight:800, marginBottom:6, fontSize:15 }}>{selectedExpense.description}</div>
+                  <div style={{ color:"#fff", fontSize:24, fontWeight:900 }}>{formatAmount(selectedExpense.amount, selectedExpense.currency||"EUR")}</div>
+                  <div style={{ color:"rgba(255,255,255,0.8)", fontSize:11, marginTop:6, fontWeight:600 }}>👤 {selectedExpense.userName}{selectedExpense.sharedWith ? ` · 👥 ${selectedExpense.sharedWith}` : ""}{selectedExpense.place ? ` · 📍 ${selectedExpense.place}` : ""} {selectedExpense.receipt ? "· 📎 Scontrino" : "· ⚠️ No scontrino"}</div>
                 </div>
                 {(selectedExpense.receiptFull || selectedExpense.receiptPreview) && (
                   <div style={{ marginBottom:12, borderRadius:10, overflow:"hidden", border:"1px solid #334155", cursor:"pointer" }} onClick={() => setViewReceipt(selectedExpense.receiptFull || selectedExpense.receiptPreview)}>
                     <img src={selectedExpense.receiptFull || selectedExpense.receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:180, objectFit:"cover", display:"block" }} />
-                    <div style={{ background:"#0f172a", padding:"6px 12px", color:"#64748b", fontSize:11 }}>📷 Tocca per ingrandire</div>
+                    <div style={{ background:"var(--bg)", padding:"6px 12px", color:"var(--text2)", fontSize:11 }}>📷 Tocca per ingrandire</div>
                   </div>
                 )}
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ color:"#64748b", fontSize:10, fontWeight:700, display:"block", marginBottom:5, letterSpacing:0.8 }}>NOTE (opzionale)</label>
+                  <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>NOTE (opzionale)</label>
                   <input value={noteInput} onChange={e => setNoteInput(e.target.value)} placeholder="Es: Manca scontrino originale..."
-                    style={{ width:"100%", padding:"10px 12px", borderRadius:9, border:"1px solid #334155", background:"#0f172a", color:"#f1f5f9", fontSize:14 }} />
+                    style={{ width:"100%", padding:"10px 12px", borderRadius:9, border:"1.5px solid var(--border)", background:"var(--surface2)", color:"var(--text)", fontSize:14 }} />
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={() => setSelectedExpense(null)} style={{ flex:1, padding:12, borderRadius:10, border:"1px solid #334155", background:"none", color:"#94a3b8", fontWeight:600, cursor:"pointer", fontSize:13 }}>Annulla</button>
-                  <button onClick={() => handleAction(selectedExpense.id, "rejected")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"rgba(239,68,68,0.15)", color:"#ef4444", fontWeight:700, cursor:"pointer", fontSize:13 }}>✕ Rifiuta</button>
-                  <button onClick={() => handleAction(selectedExpense.id, "approved")} style={{ flex:1, padding:12, borderRadius:10, border:"none", background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13 }}>✓ Approva</button>
+                  <button onClick={() => setSelectedExpense(null)} style={{ flex:1, padding:12, borderRadius:14, border:"2px solid var(--border)", background:"none", color:"var(--text2)", fontWeight:800, cursor:"pointer", fontSize:13 }}>Annulla</button>
+                  <button onClick={() => handleAction(selectedExpense.id, "rejected")} style={{ flex:1, padding:12, borderRadius:14, border:"none", background:"linear-gradient(135deg,#ef233c,#7209b7)", color:"#fff", fontWeight:800, cursor:"pointer", fontSize:13, boxShadow:"0 6px 16px rgba(239,35,60,0.3)" }}>✕ Rifiuta</button>
+                  <button onClick={() => handleAction(selectedExpense.id, "approved")} style={{ flex:1, padding:12, borderRadius:14, border:"none", background:"linear-gradient(135deg,#06d6a0,#4361ee)", color:"#fff", fontWeight:800, cursor:"pointer", fontSize:13, boxShadow:"0 6px 16px rgba(6,214,160,0.3)" }}>✓ Approva</button>
                 </div>
               </div>
             </div>
@@ -1505,17 +1580,18 @@
       if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
 
       if (loading) return (
-        <div style={{ minHeight:"100vh", background:"#0f172a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-          <div style={{ width:24, height:24, border:"3px solid #3b82f6", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
-          <div style={{ color:"#64748b", fontSize:14 }}>Caricamento...</div>
+        <div style={{ minHeight:"100vh", background:"var(--grad-main)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:20 }}>
+          <div style={{ fontSize:56, animation:"float 2s ease-in-out infinite" }}>💼</div>
+          <div style={{ width:40, height:40, border:"4px solid rgba(255,255,255,0.3)", borderTopColor:"#fff", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+          <div style={{ color:"rgba(255,255,255,0.85)", fontSize:15, fontWeight:800 }}>Caricamento...</div>
         </div>
       );
 
       if (dbError) return (
-        <div style={{ minHeight:"100vh", background:"#0f172a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
-          <div style={{ fontSize:40 }}>⚠️</div>
-          <div style={{ color:"#f1f5f9", fontSize:16, fontWeight:700, textAlign:"center" }}>{dbError}</div>
-          <button onClick={() => window.location.reload()} style={{ padding:"12px 24px", borderRadius:10, border:"none", background:"#3b82f6", color:"#fff", fontWeight:700, cursor:"pointer" }}>Riprova</button>
+        <div style={{ minHeight:"100vh", background:"var(--grad-hot)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, padding:24 }}>
+          <div style={{ fontSize:56 }}>⚠️</div>
+          <div style={{ color:"#fff", fontSize:16, fontWeight:800, textAlign:"center" }}>{dbError}</div>
+          <button onClick={() => window.location.reload()} style={{ padding:"14px 28px", borderRadius:20, border:"none", background:"rgba(255,255,255,0.25)", color:"#fff", fontWeight:900, cursor:"pointer", fontSize:15, border:"2px solid rgba(255,255,255,0.4)" }}>🔄 Riprova</button>
         </div>
       );
 
