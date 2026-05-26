@@ -713,9 +713,11 @@
       const [viewingExpense, setViewingExpense] = useState(null);
 
       const myExpenses = expenses.filter(e => e.userName === user.name || e.userId == user.id);
-      const lastPlace = [...myExpenses].reverse().find(e => e.place)?.place || "";
-      const lastSharedWith = [...myExpenses].reverse().find(e => e.sharedWith)?.sharedWith || "";
-      const lastVisitReason = [...myExpenses].reverse().find(e => e.visitReason)?.visitReason || "";
+      // Usa l'ordine dell'array (expenses è già ordinato per data desc dal DB)
+      // reverse() per avere la più recente in testa già c'è, usiamo il primo trovato
+      const lastPlace       = myExpenses.find(e => e.place?.trim())?.place?.trim() || "";
+      const lastSharedWith  = myExpenses.find(e => e.sharedWith?.trim())?.sharedWith?.trim() || "";
+      const lastVisitReason = myExpenses.find(e => e.visitReason?.trim())?.visitReason?.trim() || "";
       const eurExp   = myExpenses.filter(e => (e.currency||"EUR")==="EUR");
       const total    = eurExp.reduce((s,e) => s+e.amount, 0);
       const approved = eurExp.filter(e => e.status==="approved").reduce((s,e) => s+e.amount, 0);
@@ -835,7 +837,7 @@
             </div>
           </div>
 
-          {showModal && <NewExpenseModal onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} defaultPlace={lastPlace} defaultSharedWith={lastSharedWith} defaultVisitReason={lastVisitReason} />}
+          {showModal && <NewExpenseModal key={`new-${myExpenses.length}`} onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} defaultPlace={lastPlace} defaultSharedWith={lastSharedWith} defaultVisitReason={lastVisitReason} />}
           {editingExpense && <NewExpenseModal onClose={() => setEditingExpense(null)} onSave={exp => { onEditExpense({...exp, status: (editingExpense.status==="approved" || editingExpense.status==="rejected") ? "pending" : exp.status, note: ""}); setEditingExpense(null); }} currentUserId={user.id} currentUserName={user.name} initialData={editingExpense} />}
 
           {deletingExpense && (
