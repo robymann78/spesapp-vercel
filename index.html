@@ -397,6 +397,7 @@
       const [ocrError, setOcrError] = useState("");
       const [lightbox, setLightbox] = useState(false);
       const [formError, setFormError] = useState("");
+      const [pdfFile, setPdfFile] = useState(null);
       const cameraRef = useRef();
       const galleryRef = useRef();
 
@@ -443,21 +444,61 @@
         const file = e.target.files[0];
         if (!file) return;
         setReceiptName(file.name);
-        setForm(f => ({ ...f, receipt:true }));
+        setOcrError("");
+
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
         const reader = new FileReader();
         reader.onload = async ev => {
           const original = ev.target.result;
-          setReceiptPreview(original);
-          if (file.type.startsWith("image/")) {
-            const compressed = await compressImage(original);
-            runOCR(compressed);
+
+          if (isPdf) {
+            // PDF: non mostra anteprima immagine, ma segnala come allegato
+            setReceiptPreview("PDF:" + file.name); // marker speciale
+            setForm(f => ({ ...f, receipt:true }));
+            // Prova OCR su PDF via API
+            setOcring(true);
+            try {
+              const base64Data = original.split(",")[1];
+              const resp = await fetch("/api/ocr", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: base64Data, mediaType: "application/pdf" })
+              });
+              if (resp.ok) {
+                const parsed = await resp.json();
+                if (!parsed.error) {
+                  setForm(f => ({
+                    ...f,
+                    amount: parsed.importo != null ? String(parsed.importo) : f.amount,
+                    date: parsed.data || f.date,
+                    description: parsed.descrizione || f.description,
+                    category: parsed.categoria || f.category,
+                  }));
+                }
+              }
+            } catch(err) { console.warn("PDF OCR failed", err); }
+            finally { setOcring(false); }
+            // Carica il PDF su storage
+            setPdfFile({ name: file.name, base64: original.split(",")[1], mime: "application/pdf" });
+          } else {
+            // Immagine normale
+            setReceiptPreview(original);
+            setForm(f => ({ ...f, receipt:true }));
+            if (file.type.startsWith("image/")) {
+              const compressed = await compressImage(original);
+              await runOCR(compressed); // await per evitare race condition
+            }
           }
         };
+        reader.onerror = () => {
+          setOcrError("Errore nel caricamento del file. Riprova.");
+        };
         reader.readAsDataURL(file);
-        e.target.value = "";
+        e.target.value = ""; // reset input
       };
 
-      const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setOcrError(""); setForm(f => ({ ...f, receipt:false })); };
+      const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setOcrError(""); setPdfFile(null); setForm(f => ({ ...f, receipt:false })); };
 
       const handleSave = () => {
         setFormError("");
@@ -470,7 +511,7 @@
           if (isEdit) {
             onSave({ ...initialData, ...form, amount:parseFloat(form.amount), receiptPreview, receiptFull:receiptPreview });
           } else {
-            onSave({ id:Date.now(), userId:currentUserId, userName:currentUserName, ...form, amount:parseFloat(form.amount), status:"pending", note:"", receiptPreview, receiptFull:receiptPreview });
+            onSave({ id:Date.now(), userId:currentUserId, userName:currentUserName, ...form, amount:parseFloat(form.amount), status:"pending", note:"", receiptPreview: receiptPreview?.startsWith("PDF:") ? null : receiptPreview, receiptFull: receiptPreview?.startsWith("PDF:") ? null : receiptPreview, pdfBase64: pdfFile?.base64 || null, pdfMime: pdfFile?.mime || null });
           }
           onClose();
         }, 300);
@@ -509,6 +550,7 @@
                   <div style={{ display:"flex", gap:6 }}>
                     <select value={form.currency} onChange={e => setForm({...form, currency:e.target.value})}
                       style={{ padding:"11px 8px", borderRadius:10, border:"1px solid #334155", background:"var(--bg)", color:"var(--text)", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+                      <option value="JPY">¥ JPY</option>
                       <option value="EUR">€ EUR</option>
                       <option value="USD">$ USD</option>
                       <option value="TRY">₺ TRY</option>
@@ -598,6 +640,26 @@
                     <button onClick={() => galleryRef.current.click()} style={{ padding:"20px 12px", borderRadius:14, border:"2px dashed #334155", background:"var(--bg)", color:"var(--text3)", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:28 }}>🖼️</span><span>Galleria / PDF</span>
                     </button>
+                  </div>
+                ) : receiptPreview.startsWith("PDF:") ? (
+                  // Anteprima PDF
+                  <div style={{ borderRadius:14, border:`2px solid ${ocring ? "var(--blue)" : "var(--green)"}`, background:"var(--surface2)", padding:"20px 16px", transition:"border 0.3s" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+                      <span style={{ fontSize:40 }}>📄</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pdfFile?.name || receiptName}</div>
+                        <div style={{ color: ocring ? "var(--blue)" : "var(--green)", fontSize:12, marginTop:2, fontWeight:700 }}>
+                          {ocring ? "🤖 Lettura OCR in corso..." : "✅ PDF allegato"}
+                        </div>
+                      </div>
+                    </div>
+                    {ocring && (
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                        <div style={{ width:14, height:14, border:"2px solid var(--blue)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", flexShrink:0 }} />
+                        <span style={{ color:"var(--blue)", fontSize:12, fontWeight:700 }}>Analisi documento...</span>
+                      </div>
+                    )}
+                    <button onClick={clearReceipt} style={{ padding:"6px 14px", borderRadius:20, border:"none", background:"linear-gradient(135deg,var(--red),#7209b7)", color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>✕ Rimuovi</button>
                   </div>
                 ) : (
                   <div style={{ borderRadius:14, overflow:"hidden", border:`2px solid ${ocring ? "#6366f1" : "#10b981"}`, position:"relative", transition:"border 0.3s" }}>
@@ -1525,24 +1587,23 @@
 
       const handleAddExpense = useCallback(async exp => {
         try {
-          // Prima salva sul DB (senza immagine) per ottenere l'ID reale da Supabase
           const expForDb = { ...exp, receiptPreview: null, receiptFull: null };
           const saved = await saveExpenseToCloud(expForDb);
           const realId = saved?.id || exp.id;
 
-          // Poi carica lo scontrino con l'ID reale
           let receiptUrl = null;
-          if (exp.receiptPreview) {
+          // Usa pdfFile se presente, altrimenti usa receiptPreview (immagine)
+          const uploadBase64 = exp.pdfBase64 || (exp.receiptPreview && !exp.receiptPreview.startsWith("PDF:") ? exp.receiptPreview.split(",")[1] : null);
+          const uploadMime = exp.pdfMime || "image/jpeg";
+
+          if (uploadBase64) {
             try {
-              const parts = exp.receiptPreview.split(",");
-              const mime = parts[0].split(":")[1]?.split(";")[0] || "image/jpeg";
-              receiptUrl = await uploadReceiptToStorage(realId, parts[1], mime);
-              // Aggiorna receipt_url sul DB
+              receiptUrl = await uploadReceiptToStorage(realId, uploadBase64, uploadMime);
               await updateExpenseInCloud(realId, { receipt: true, receipt_url: receiptUrl });
             } catch(e) { console.warn("Upload failed", e); }
           }
 
-          setExpenses(prev => [{ ...exp, id: realId, receiptFull: receiptUrl || null, receiptPreview: null }, ...prev]);
+          setExpenses(prev => [{ ...exp, id: realId, receiptFull: receiptUrl || null, receiptPreview: null, pdfBase64: null }, ...prev]);
         } catch(e) {
           console.error("Save failed:", e);
           alert("❌ Errore nel salvataggio: " + e.message + "\n\nVerifica la connessione e riprova.");
