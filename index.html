@@ -443,31 +443,38 @@
       const handleFile = async e => {
         const file = e.target.files[0];
         if (!file) return;
+        e.target.value = ""; // reset subito per permettere ricaricamento stesso file
+
+        // Rileva PDF: per nome (iOS Safari manda type vuoto), oppure per MIME
+        const isPdf = file.name.toLowerCase().endsWith(".pdf") ||
+                      file.type === "application/pdf";
+
         setReceiptName(file.name);
         setOcrError("");
 
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        if (isPdf) {
+          // PDF: leggi come base64 per upload, mostra placeholder
+          setReceiptPreview("PDF:" + file.name);
+          setForm(f => ({ ...f, receipt: true }));
 
-        const reader = new FileReader();
-        reader.onload = async ev => {
-          const original = ev.target.result;
+          const reader = new FileReader();
+          reader.onload = async ev => {
+            const dataUrl = ev.target.result;
+            const base64 = dataUrl.split(",")[1];
+            // Salva dati PDF per upload successivo
+            setPdfFile({ name: file.name, base64, mime: "application/pdf" });
 
-          if (isPdf) {
-            // PDF: non mostra anteprima immagine, ma segnala come allegato
-            setReceiptPreview("PDF:" + file.name); // marker speciale
-            setForm(f => ({ ...f, receipt:true }));
-            // Prova OCR su PDF via API
+            // Tenta OCR sul PDF
             setOcring(true);
             try {
-              const base64Data = original.split(",")[1];
               const resp = await fetch("/api/ocr", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: base64Data, mediaType: "application/pdf" })
+                body: JSON.stringify({ image: base64, mediaType: "application/pdf" })
               });
               if (resp.ok) {
                 const parsed = await resp.json();
-                if (!parsed.error) {
+                if (parsed && !parsed.error) {
                   setForm(f => ({
                     ...f,
                     amount: parsed.importo != null ? String(parsed.importo) : f.amount,
@@ -479,23 +486,25 @@
               }
             } catch(err) { console.warn("PDF OCR failed", err); }
             finally { setOcring(false); }
-            // Carica il PDF su storage
-            setPdfFile({ name: file.name, base64: original.split(",")[1], mime: "application/pdf" });
-          } else {
-            // Immagine normale
+          };
+          reader.onerror = () => setOcrError("Errore nel caricamento del PDF.");
+          reader.readAsDataURL(file);
+
+        } else {
+          // Immagine: leggi, mostra anteprima, esegui OCR
+          const reader = new FileReader();
+          reader.onload = async ev => {
+            const original = ev.target.result;
             setReceiptPreview(original);
-            setForm(f => ({ ...f, receipt:true }));
-            if (file.type.startsWith("image/")) {
+            setForm(f => ({ ...f, receipt: true }));
+            if (file.type.startsWith("image/") || original.startsWith("data:image/")) {
               const compressed = await compressImage(original);
-              await runOCR(compressed); // await per evitare race condition
+              await runOCR(compressed);
             }
-          }
-        };
-        reader.onerror = () => {
-          setOcrError("Errore nel caricamento del file. Riprova.");
-        };
-        reader.readAsDataURL(file);
-        e.target.value = ""; // reset input
+          };
+          reader.onerror = () => setOcrError("Errore nel caricamento dell'immagine.");
+          reader.readAsDataURL(file);
+        }
       };
 
       const clearReceipt = () => { setReceiptPreview(null); setReceiptName(""); setOcrError(""); setPdfFile(null); setForm(f => ({ ...f, receipt:false })); };
@@ -643,13 +652,13 @@
                   </div>
                 ) : receiptPreview.startsWith("PDF:") ? (
                   // Anteprima PDF
-                  <div style={{ borderRadius:14, border:`2px solid ${ocring ? "var(--blue)" : "var(--green)"}`, background:"var(--surface2)", padding:"20px 16px", transition:"border 0.3s" }}>
+                  <div style={{ borderRadius:14, border:`2px solid ${ocring ? "var(--blue)" : "var(--green)"}`, background:"var(--surface2)", padding:"16px", transition:"border 0.3s" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
-                      <span style={{ fontSize:40 }}>📄</span>
+                      <span style={{ fontSize:36 }}>📄</span>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ color:"var(--text)", fontWeight:800, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pdfFile?.name || receiptName}</div>
                         <div style={{ color: ocring ? "var(--blue)" : "var(--green)", fontSize:12, marginTop:2, fontWeight:700 }}>
-                          {ocring ? "🤖 Lettura OCR in corso..." : "✅ PDF allegato"}
+                          {ocring ? "🤖 Lettura OCR in corso..." : "✅ PDF allegato correttamente"}
                         </div>
                       </div>
                     </div>
@@ -657,6 +666,18 @@
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                         <div style={{ width:14, height:14, border:"2px solid var(--blue)", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", flexShrink:0 }} />
                         <span style={{ color:"var(--blue)", fontSize:12, fontWeight:700 }}>Analisi documento...</span>
+                      </div>
+                    )}
+                    {pdfFile?.base64 && (
+                      <div style={{ borderRadius:10, overflow:"hidden", border:"1px solid var(--border)", marginBottom:10, background:"#fff" }}>
+                        <object
+                          data={`data:application/pdf;base64,${pdfFile.base64}`}
+                          type="application/pdf"
+                          style={{ width:"100%", height:180, display:"block" }}>
+                          <div style={{ padding:16, textAlign:"center", color:"var(--text3)", fontSize:12 }}>
+                            📄 Anteprima PDF non disponibile su questo browser
+                          </div>
+                        </object>
                       </div>
                     )}
                     <button onClick={clearReceipt} style={{ padding:"6px 14px", borderRadius:20, border:"none", background:"linear-gradient(135deg,var(--red),#7209b7)", color:"#fff", fontSize:11, fontWeight:800, cursor:"pointer" }}>✕ Rimuovi</button>
