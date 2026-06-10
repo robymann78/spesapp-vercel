@@ -416,7 +416,15 @@
         sharedWith: initialData.sharedWith || "",
         paymentMethod: initialData.paymentMethod || "carta", visitReason: initialData.visitReason || "", place: initialData.place || "",
       } : { date: new Date().toISOString().split("T")[0], amount:"", category:"travel", description:"", receipt:false, currency:"EUR", sharedWith:defaultSharedWith, paymentMethod:"carta", visitReason:defaultVisitReason, place:defaultPlace });
-      const [receiptPreview, setReceiptPreview] = useState(initialData?.receiptFull || null);
+      const [receiptPreview, setReceiptPreview] = useState(() => {
+        const url = initialData?.receiptFull || null;
+        if (!url) return null;
+        // Se l'URL è un PDF, usa il marker PDF: così il ternario funziona
+        if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('application/pdf')) {
+          return "PDF:" + url;
+        }
+        return url;
+      });
       const [receiptName, setReceiptName] = useState(initialData?.receipt ? "Scontrino esistente" : "");
       const [saving, setSaving] = useState(false);
       const [ocring, setOcring] = useState(false);
@@ -682,10 +690,19 @@
                     <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
                       <span style={{ fontSize:36 }}>📄</span>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{pdfFile?.name || receiptName}</div>
+                        <div style={{ color:"var(--text)", fontWeight:800, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                          {pdfFile?.name || receiptName || "PDF allegato"}
+                        </div>
                         <div style={{ color: ocring ? "var(--blue)" : "var(--green)", fontSize:12, marginTop:2, fontWeight:700 }}>
                           {ocring ? "🤖 Lettura OCR in corso..." : "✅ PDF allegato correttamente"}
                         </div>
+                        {/* Link diretto se è un URL Supabase */}
+                        {receiptPreview.startsWith("PDF:http") && (
+                          <a href={receiptPreview.slice(4)} target="_blank" rel="noopener noreferrer"
+                            style={{ color:"var(--blue)", fontSize:12, fontWeight:800, marginTop:4, display:"inline-block" }}>
+                            👁️ Apri PDF →
+                          </a>
+                        )}
                       </div>
                     </div>
                     {ocring && (
@@ -694,14 +711,17 @@
                         <span style={{ color:"var(--blue)", fontSize:12, fontWeight:700 }}>Analisi documento...</span>
                       </div>
                     )}
-                    {pdfFile?.base64 && (
+                    {/* Viewer inline: base64 (nuovo upload) o URL Supabase (modifica) */}
+                    {(pdfFile?.base64 || receiptPreview.startsWith("PDF:http")) && (
                       <div style={{ borderRadius:10, overflow:"hidden", border:"1px solid var(--border)", marginBottom:10, background:"#fff" }}>
                         <object
-                          data={`data:application/pdf;base64,${pdfFile.base64}`}
+                          data={pdfFile?.base64
+                            ? `data:application/pdf;base64,${pdfFile.base64}`
+                            : receiptPreview.slice(4)}
                           type="application/pdf"
-                          style={{ width:"100%", height:180, display:"block" }}>
+                          style={{ width:"100%", height:200, display:"block" }}>
                           <div style={{ padding:16, textAlign:"center", color:"var(--text3)", fontSize:12 }}>
-                            📄 Anteprima PDF non disponibile su questo browser
+                            📄 Anteprima non disponibile — usa il link "Apri PDF →" sopra
                           </div>
                         </object>
                       </div>
@@ -1002,13 +1022,30 @@
 
           {viewReceipt && (
             isPdfUrl(viewReceipt) ? (
-              // PDF: apri in nuova tab
-              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:20, flexDirection:"column", gap:16 }}>
-                <span style={{ fontSize:64 }}>📄</span>
-                <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>Documento PDF</div>
-                {viewReceipt.startsWith("http") && <a href={viewReceipt} target="_blank" rel="noopener noreferrer" style={{ padding:"12px 24px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:15, textDecoration:"none" }}>Apri PDF →</a>}
-                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
-              </div>
+              // PDF: mostra viewer o link
+              (() => {
+                const pdfUrl = viewReceipt.startsWith("PDF:") ? viewReceipt.slice(4) : viewReceipt;
+                return (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", flexDirection:"column", zIndex:200 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", background:"rgba(0,0,0,0.8)" }}>
+                      <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>📄 Documento PDF</div>
+                      <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                        {pdfUrl.startsWith("http") && <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{ padding:"8px 16px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:13, textDecoration:"none" }}>Apri →</a>}
+                        <button onClick={() => setViewReceipt(null)} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+                      </div>
+                    </div>
+                    <div style={{ flex:1, overflow:"hidden" }}>
+                      {pdfUrl.startsWith("http") ? (
+                        <iframe src={pdfUrl} style={{ width:"100%", height:"100%", border:"none" }} title="PDF" />
+                      ) : (
+                        <object data={pdfUrl} type="application/pdf" style={{ width:"100%", height:"100%" }}>
+                          <div style={{ color:"#fff", textAlign:"center", paddingTop:40 }}>Anteprima non disponibile</div>
+                        </object>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
                 <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
@@ -1643,13 +1680,30 @@
 
           {viewReceipt && (
             isPdfUrl(viewReceipt) ? (
-              // PDF: apri in nuova tab
-              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:20, flexDirection:"column", gap:16 }}>
-                <span style={{ fontSize:64 }}>📄</span>
-                <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>Documento PDF</div>
-                {viewReceipt.startsWith("http") && <a href={viewReceipt} target="_blank" rel="noopener noreferrer" style={{ padding:"12px 24px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:15, textDecoration:"none" }}>Apri PDF →</a>}
-                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
-              </div>
+              // PDF: mostra viewer o link
+              (() => {
+                const pdfUrl = viewReceipt.startsWith("PDF:") ? viewReceipt.slice(4) : viewReceipt;
+                return (
+                  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", flexDirection:"column", zIndex:200 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", background:"rgba(0,0,0,0.8)" }}>
+                      <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>📄 Documento PDF</div>
+                      <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                        {pdfUrl.startsWith("http") && <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{ padding:"8px 16px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:13, textDecoration:"none" }}>Apri →</a>}
+                        <button onClick={() => setViewReceipt(null)} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:34, height:34, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+                      </div>
+                    </div>
+                    <div style={{ flex:1, overflow:"hidden" }}>
+                      {pdfUrl.startsWith("http") ? (
+                        <iframe src={pdfUrl} style={{ width:"100%", height:"100%", border:"none" }} title="PDF" />
+                      ) : (
+                        <object data={pdfUrl} type="application/pdf" style={{ width:"100%", height:"100%" }}>
+                          <div style={{ color:"#fff", textAlign:"center", paddingTop:40 }}>Anteprima non disponibile</div>
+                        </object>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
                 <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
