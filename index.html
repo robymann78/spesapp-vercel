@@ -215,6 +215,32 @@
       return 1 + Math.round(((thu - jan4) / 86400000 - 3 + (jan4.getDay() + 6) % 7) / 7);
     };
 
+    // Helper: determina se un URL/dataUrl è un PDF
+    const isPdfUrl = (src) => {
+      if (!src) return false;
+      if (src.startsWith("PDF:")) return true;
+      if (src.startsWith("data:application/pdf")) return true;
+      if (src.toLowerCase().includes(".pdf")) return true;
+      return false;
+    };
+
+    // Componente per mostrare scontrino (immagine o PDF)
+    function ReceiptThumb({ src, onClick, style={} }) {
+      if (!src || src.startsWith("PDF:")) return null;
+      if (isPdfUrl(src)) {
+        return (
+          <div onClick={onClick} style={{ background:"#f8f9ff", borderRadius:10, border:"2px solid var(--green)", padding:"10px 12px", cursor:"pointer", display:"flex", alignItems:"center", gap:10, ...style }}>
+            <span style={{ fontSize:28 }}>📄</span>
+            <div>
+              <div style={{ color:"var(--text)", fontWeight:800, fontSize:13 }}>PDF allegato</div>
+              <div style={{ color:"var(--blue)", fontSize:11, marginTop:2, fontWeight:700 }}>👁️ Tocca per aprire</div>
+            </div>
+          </div>
+        );
+      }
+      return <img src={src} alt="Scontrino" style={{ ...style }} onClick={onClick} />;
+    }
+
     const formatAmount = (n, currency = "EUR") =>
       new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(n);
     const formatEur = n => formatAmount(n, "EUR");
@@ -684,7 +710,24 @@
                   </div>
                 ) : (
                   <div style={{ borderRadius:14, overflow:"hidden", border:`2px solid ${ocring ? "#6366f1" : "#10b981"}`, position:"relative", transition:"border 0.3s" }}>
-                    <img src={receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block", cursor:"pointer" }} onClick={() => !ocring && setLightbox(true)} />
+                    {isPdfUrl(receiptPreview) ? (
+                      // URL PDF da Supabase o base64 PDF
+                      <div style={{ background:"#f8f9ff", padding:"16px", display:"flex", alignItems:"center", gap:12 }}>
+                        <span style={{ fontSize:40 }}>📄</span>
+                        <div style={{ flex:1 }}>
+                          <div style={{ color:"var(--text)", fontWeight:800, fontSize:14 }}>{receiptName || "PDF allegato"}</div>
+                          <div style={{ color:"var(--green)", fontSize:12, marginTop:2, fontWeight:700 }}>✅ Scontrino PDF presente</div>
+                          {receiptPreview.startsWith("http") && (
+                            <a href={receiptPreview} target="_blank" rel="noopener noreferrer"
+                              style={{ color:"var(--blue)", fontSize:11, fontWeight:700, marginTop:4, display:"block" }}>
+                              👁️ Apri PDF →
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <img src={receiptPreview} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block", cursor:"pointer" }} onClick={() => !ocring && setLightbox(true)} />
+                    )}
                     {ocring && (
                       <div style={{ position:"absolute", inset:0, background:"rgba(99,102,241,0.3)", display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
                         <div style={{ color:"#fff", fontWeight:700, fontSize:13, display:"flex", alignItems:"center", gap:8 }}>
@@ -694,7 +737,7 @@
                       </div>
                     )}
                     <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)", display:"flex", alignItems:"flex-end", padding:10, justifyContent:"space-between", pointerEvents: ocring ? "none" : "auto" }}>
-                      <div style={{ color:"#fff", fontSize:11, fontWeight:600 }} onClick={() => !ocring && setLightbox(true)}>{ocring ? "🤖 Lettura..." : `✅ ${receiptName || "Allegato"} · 🔍 anteprima`}</div>
+                      <div style={{ color:"#fff", fontSize:11, fontWeight:600 }} onClick={() => !ocring && !isPdfUrl(receiptPreview) && setLightbox(true)}>{ocring ? "🤖 Lettura..." : `✅ ${receiptName || "Allegato"} · 🔍 anteprima`}</div>
                       <div style={{ display:"flex", gap:6 }}>
                         <button onClick={() => cameraRef.current.click()} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(255,255,255,0.2)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer" }}>📷 Rifai</button>
                         <button onClick={clearReceipt} style={{ padding:"5px 10px", borderRadius:7, border:"none", background:"rgba(239,68,68,0.7)", color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer" }}>Rimuovi</button>
@@ -775,10 +818,20 @@
               </div>
             )}
             {imgSrc && (
-              <div style={{ borderRadius:14, overflow:"hidden", border:"1px solid #334155", marginBottom:14, cursor:"pointer" }} onClick={() => onViewReceipt(imgSrc)}>
-                <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
-                <div style={{ background:"var(--bg)", padding:"7px 12px", color:"var(--text2)", fontSize:13 }}>📷 Tocca per ingrandire</div>
-              </div>
+              isPdfUrl(imgSrc) ? (
+                <div style={{ borderRadius:14, border:"2px solid var(--green)", background:"#f8f9ff", padding:"14px 16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
+                  <span style={{ fontSize:36 }}>📄</span>
+                  <div>
+                    <div style={{ color:"var(--text)", fontWeight:800, fontSize:13 }}>PDF allegato</div>
+                    {imgSrc.startsWith("http") && <a href={imgSrc} target="_blank" rel="noopener noreferrer" style={{ color:"var(--blue)", fontSize:12, fontWeight:700 }}>👁️ Apri PDF →</a>}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ borderRadius:14, overflow:"hidden", border:"1px solid #334155", marginBottom:14, cursor:"pointer" }} onClick={() => onViewReceipt(imgSrc)}>
+                  <img src={imgSrc} alt="Scontrino" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
+                  <div style={{ background:"var(--bg)", padding:"7px 12px", color:"var(--text2)", fontSize:13 }}>📷 Tocca per ingrandire</div>
+                </div>
+              )
             )}
             <button onClick={onClose} style={{ width:"100%", padding:13, borderRadius:14, border:"1px solid #334155", background:"none", color:"#888", fontWeight:600, cursor:"pointer", fontSize:14 }}>Chiudi</button>
           </div>
@@ -888,8 +941,13 @@
                     <div style={{ padding:"16px", display:"flex", alignItems:"center", gap:12 }}
                       onClick={() => canView && setViewingExpense(exp)}>
                       {exp.receiptFull || exp.receiptPreview ? (
-                        <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={e => { e.stopPropagation(); setViewReceipt(exp.receiptFull || exp.receiptPreview); }}
-                          style={{ width:52, height:52, borderRadius:14, objectFit:"cover", border:"3px solid var(--green)", flexShrink:0, cursor:"pointer", boxShadow:"0 4px 12px rgba(6,214,160,0.3)" }} />
+                        isPdfUrl(exp.receiptFull || exp.receiptPreview) ? (
+                          <div onClick={e => { e.stopPropagation(); setViewReceipt(exp.receiptFull || exp.receiptPreview); }}
+                            style={{ width:52, height:52, borderRadius:14, border:"3px solid var(--green)", flexShrink:0, cursor:"pointer", background:"#f8f9ff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow:"0 4px 12px rgba(6,214,160,0.3)" }}>📄</div>
+                        ) : (
+                          <img src={exp.receiptFull || exp.receiptPreview} alt="scontrino" onClick={e => { e.stopPropagation(); setViewReceipt(exp.receiptFull || exp.receiptPreview); }}
+                            style={{ width:52, height:52, borderRadius:14, objectFit:"cover", border:"3px solid var(--green)", flexShrink:0, cursor:"pointer", boxShadow:"0 4px 12px rgba(6,214,160,0.3)" }} />
+                        )
                       ) : (
                         <div style={{ width:52, height:52, borderRadius:14, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, border:`2px solid ${cat.color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>{cat.icon}</div>
                       )}
@@ -943,10 +1001,20 @@
           {viewingExpense && <ReadOnlyExpenseModal exp={viewingExpense} onClose={() => setViewingExpense(null)} onViewReceipt={setViewReceipt} />}
 
           {viewReceipt && (
-            <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
-              <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
-              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
-            </div>
+            isPdfUrl(viewReceipt) ? (
+              // PDF: apri in nuova tab
+              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:20, flexDirection:"column", gap:16 }}>
+                <span style={{ fontSize:64 }}>📄</span>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>Documento PDF</div>
+                {viewReceipt.startsWith("http") && <a href={viewReceipt} target="_blank" rel="noopener noreferrer" style={{ padding:"12px 24px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:15, textDecoration:"none" }}>Apri PDF →</a>}
+                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              </div>
+            ) : (
+              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
+                <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
+                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              </div>
+            )
           )}
           <InstallBanner />
         </div>
@@ -1387,8 +1455,13 @@
                     return (
                       <div key={exp.id} style={{ background:"var(--surface)", borderRadius:18, padding:"14px", border: exp.status==="pending" ? "2px solid rgba(247,127,0,0.4)" : "1px solid var(--border)", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 16px rgba(67,97,238,0.06)" }}>
                         {exp.receiptFull || exp.receiptPreview ? (
-                          <img src={exp.receiptFull || exp.receiptPreview} alt="" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
-                            style={{ width:44, height:44, borderRadius:12, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
+                          isPdfUrl(exp.receiptFull || exp.receiptPreview) ? (
+                            <div onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
+                              style={{ width:44, height:44, borderRadius:12, border:"2px solid var(--green)", flexShrink:0, cursor:"pointer", background:"#f8f9ff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>📄</div>
+                          ) : (
+                            <img src={exp.receiptFull || exp.receiptPreview} alt="" onClick={() => setViewReceipt(exp.receiptFull || exp.receiptPreview)}
+                              style={{ width:44, height:44, borderRadius:12, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
+                          )
                         ) : (
                           <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, border:`2px solid ${cat.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
                         )}
@@ -1569,10 +1642,20 @@
           {viewingExpense && <ReadOnlyExpenseModal exp={viewingExpense} onClose={() => setViewingExpense(null)} onViewReceipt={setViewReceipt} />}
 
           {viewReceipt && (
-            <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
-              <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
-              <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
-            </div>
+            isPdfUrl(viewReceipt) ? (
+              // PDF: apri in nuova tab
+              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:20, flexDirection:"column", gap:16 }}>
+                <span style={{ fontSize:64 }}>📄</span>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>Documento PDF</div>
+                {viewReceipt.startsWith("http") && <a href={viewReceipt} target="_blank" rel="noopener noreferrer" style={{ padding:"12px 24px", borderRadius:20, background:"var(--grad-main)", color:"#fff", fontWeight:900, fontSize:15, textDecoration:"none" }}>Apri PDF →</a>}
+                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              </div>
+            ) : (
+              <div onClick={() => setViewReceipt(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:16 }}>
+                <img src={viewReceipt} alt="Scontrino" style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain" }} />
+                <button onClick={() => setViewReceipt(null)} style={{ position:"absolute", top:20, right:20, background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+              </div>
+            )
           )}
           <InstallBanner />
         </div>
