@@ -1065,6 +1065,10 @@
       const [activeTab, setActiveTab] = useState("dashboard");
       const [filterStatus, setFilterStatus] = useState("all");
       const [filterUser, setFilterUser] = useState("all");
+      const [filterYear, setFilterYear] = useState("all");
+      const [filterWeek, setFilterWeek] = useState("all");
+      const [filterDate, setFilterDate] = useState("");
+      const [filterReason, setFilterReason] = useState("all");
       const [selectedExpense, setSelectedExpense] = useState(null);
       const [noteInput, setNoteInput] = useState("");
       const [viewReceipt, setViewReceipt] = useState(null);
@@ -1175,9 +1179,19 @@
         count: expenses.filter(e => e.userName===u.name || e.userId==u.id).length
       })).sort((a,b) => b.total-a.total);
 
+      const availableYears = [...new Set(expenses.map(e => e.date?.slice(0,4)).filter(Boolean))].sort().reverse();
+      const availableWeeks = [...new Set(
+        expenses.filter(e => filterYear==="all" || e.date?.startsWith(filterYear))
+          .map(e => String(getWeekNumber(e.date)))
+      )].sort((a,b)=>Number(a)-Number(b));
+
       const filtered = expenses
         .filter(e => filterStatus === "all" || e.status === filterStatus)
-        .filter(e => filterUser === "all" || e.userName === filterUser || String(e.userId) === filterUser);
+        .filter(e => filterUser === "all" || e.userName === filterUser || String(e.userId) === filterUser)
+        .filter(e => filterYear === "all" || e.date?.startsWith(filterYear))
+        .filter(e => filterDate === "" || e.date === filterDate)
+        .filter(e => filterWeek === "all" || String(getWeekNumber(e.date)) === filterWeek)
+        .filter(e => filterReason === "all" || e.visitReason === filterReason);
 
       const handleAction = (id, status) => {
         onUpdateStatus(id, status, noteInput);
@@ -1496,6 +1510,52 @@
                       ))}
                     </select>
                     <button onClick={() => { setActiveTab("dashboard"); setTimeout(() => setShowExportPanel(true), 100); }} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+                  </div>
+                </div>
+
+                {/* ── Filtri avanzati ── */}
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14 }}>
+                  {/* Anno */}
+                  <select value={filterYear} onChange={e => { setFilterYear(e.target.value); setFilterWeek("all"); setFilterDate(""); }}
+                    style={{ padding:"7px 10px", borderRadius:20, border:`2px solid ${filterYear!=="all" ? "var(--blue)" : "var(--border)"}`, background: filterYear!=="all" ? "var(--blue)" : "var(--surface)", color: filterYear!=="all" ? "#fff" : "var(--text2)", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                    <option value="all">📅 Anno</option>
+                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+
+                  {/* Settimana */}
+                  <select value={filterWeek} onChange={e => setFilterWeek(e.target.value)}
+                    style={{ padding:"7px 10px", borderRadius:20, border:`2px solid ${filterWeek!=="all" ? "var(--blue)" : "var(--border)"}`, background: filterWeek!=="all" ? "var(--blue)" : "var(--surface)", color: filterWeek!=="all" ? "#fff" : "var(--text2)", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                    <option value="all">📆 Settimana</option>
+                    {availableWeeks.map(w => <option key={w} value={w}>Sett. {w}</option>)}
+                  </select>
+
+                  {/* Data esatta */}
+                  <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+                    <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+                      style={{ padding:"7px 10px", borderRadius:20, border:`2px solid ${filterDate ? "var(--blue)" : "var(--border)"}`, background: filterDate ? "var(--blue)" : "var(--surface)", color: filterDate ? "#fff" : "var(--text2)", fontSize:11, fontWeight:800, cursor:"pointer", colorScheme: filterDate ? "dark" : "normal" }} />
+                    {filterDate && <button onClick={() => setFilterDate("")} style={{ marginLeft:-28, background:"none", border:"none", color: filterDate ? "#fff" : "var(--text3)", fontSize:14, cursor:"pointer", fontWeight:900 }}>✕</button>}
+                  </div>
+
+                  {/* Motivo visita */}
+                  <select value={filterReason} onChange={e => setFilterReason(e.target.value)}
+                    style={{ padding:"7px 10px", borderRadius:20, border:`2px solid ${filterReason!=="all" ? "var(--blue)" : "var(--border)"}`, background: filterReason!=="all" ? "var(--blue)" : "var(--surface)", color: filterReason!=="all" ? "#fff" : "var(--text2)", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                    <option value="all">🎯 Motivo</option>
+                    <option value="fiera">🏢 Fiera</option>
+                    <option value="assistenza">🔧 Assistenza tecnica</option>
+                    <option value="cliente">🤝 Cliente/Pot.</option>
+                  </select>
+
+                  {/* Reset tutti i filtri */}
+                  {(filterYear!=="all" || filterWeek!=="all" || filterDate || filterReason!=="all" || filterUser!=="all" || filterStatus!=="all") && (
+                    <button onClick={() => { setFilterYear("all"); setFilterWeek("all"); setFilterDate(""); setFilterReason("all"); setFilterUser("all"); setFilterStatus("all"); }}
+                      style={{ padding:"7px 12px", borderRadius:20, border:"2px solid var(--red)", background:"rgba(239,35,60,0.08)", color:"var(--red)", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                      ✕ Reset filtri
+                    </button>
+                  )}
+
+                  {/* Contatore risultati */}
+                  <div style={{ padding:"7px 12px", borderRadius:20, background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text3)", fontSize:11, fontWeight:700, display:"flex", alignItems:"center" }}>
+                    {filtered.length} spese
                   </div>
                 </div>
 
