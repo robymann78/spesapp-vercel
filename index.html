@@ -1207,17 +1207,19 @@
       const [showExportPanel, setShowExportPanel] = useState(false);
       const [exportUser, setExportUser] = useState("all");
 
-      const exportExcel = (dateFrom, dateTo) => {
+      const exportExcel = (dateFrom, dateTo, userFilter) => {
         const XLSX = window.XLSX;
         if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
 
         const from = dateFrom || exportDateFrom;
         const to   = dateTo   || exportDateTo;
+        const uFilter = userFilter !== undefined ? userFilter : exportUser;
         const filtered = expenses
           .filter(e => (!from || e.date >= from) && (!to || e.date <= to))
-          .filter(e => exportUser === "all" || e.userName === exportUser);
+          .filter(e => uFilter === "all" || e.userName === uFilter);
 
-        const label = from === to ? from : `${from}_${to}`;
+        const label = from === to && from ? from : `${from||"inizio"}_${to||"oggi"}`;
+        const userLabel = uFilter !== "all" ? `_${uFilter.split(" ")[0]}` : "";
 
         const allData = filtered.map(e => ({
           "ID": e.id, "Dipendente": e.userName, "Data": e.date, "Settimana": getWeekNumber(e.date),
@@ -1261,7 +1263,7 @@
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allData), "Tutte le spese");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byEmpData), "Per dipendente");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byCatData), "Per categoria");
-        XLSX.writeFile(wb, `SpesApp_${label}.xlsx`);
+        XLSX.writeFile(wb, `SpesApp${userLabel}_${label}.xlsx`);
         setShowExportPanel(false);
       };
 
@@ -1526,7 +1528,7 @@
                         <option key={u.id} value={u.name}>{u.name}</option>
                       ))}
                     </select>
-                    <button onClick={() => { setActiveTab("dashboard"); setTimeout(() => setShowExportPanel(true), 100); }} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+                    <button onClick={() => exportExcel("", "", filterUser)} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
                   </div>
                 </div>
 
