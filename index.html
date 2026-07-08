@@ -1211,8 +1211,10 @@
         const XLSX = window.XLSX;
         if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
 
-        const from = dateFrom || exportDateFrom;
-        const to   = dateTo   || exportDateTo;
+        // Se chiamato dalla tab Spese (activeFilters presente), non usare le date del pannello
+        const isFromExpensesTab = activeFilters !== undefined;
+        const from = isFromExpensesTab ? (dateFrom || "") : (dateFrom || exportDateFrom);
+        const to   = isFromExpensesTab ? (dateTo   || "") : (dateTo   || exportDateTo);
         const uFilter = userFilter !== undefined ? userFilter : exportUser;
         const af = activeFilters || {};
 
