@@ -1207,19 +1207,27 @@
       const [showExportPanel, setShowExportPanel] = useState(false);
       const [exportUser, setExportUser] = useState("all");
 
-      const exportExcel = (dateFrom, dateTo, userFilter) => {
+      const exportExcel = (dateFrom, dateTo, userFilter, activeFilters) => {
         const XLSX = window.XLSX;
         if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
 
         const from = dateFrom || exportDateFrom;
         const to   = dateTo   || exportDateTo;
         const uFilter = userFilter !== undefined ? userFilter : exportUser;
+        const af = activeFilters || {};
+
         const filtered = expenses
           .filter(e => (!from || e.date >= from) && (!to || e.date <= to))
-          .filter(e => uFilter === "all" || e.userName === uFilter);
+          .filter(e => uFilter === "all" || e.userName === uFilter)
+          .filter(e => !af.year   || af.year === "all"   || e.date?.startsWith(af.year))
+          .filter(e => !af.week   || af.week === "all"   || String(getWeekNumber(e.date)) === af.week)
+          .filter(e => !af.date   || af.date === ""      || e.date === af.date)
+          .filter(e => !af.reason || af.reason === "all" || e.visitReason === af.reason);
 
         const label = from === to && from ? from : `${from||"inizio"}_${to||"oggi"}`;
         const userLabel = uFilter !== "all" ? `_${uFilter.split(" ")[0]}` : "";
+        const weekLabel = af.week && af.week !== "all" ? `_Sett${af.week}` : "";
+        const yearLabel = af.year && af.year !== "all" ? `_${af.year}` : "";
 
         const allData = filtered.map(e => ({
           "ID": e.id, "Dipendente": e.userName, "Data": e.date, "Settimana": getWeekNumber(e.date),
@@ -1263,7 +1271,7 @@
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allData), "Tutte le spese");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byEmpData), "Per dipendente");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(byCatData), "Per categoria");
-        XLSX.writeFile(wb, `SpesApp${userLabel}_${label}.xlsx`);
+        XLSX.writeFile(wb, `SpesApp${userLabel}${yearLabel}${weekLabel}_${label}.xlsx`);
         setShowExportPanel(false);
       };
 
@@ -1528,7 +1536,7 @@
                         <option key={u.id} value={u.name}>{u.name}</option>
                       ))}
                     </select>
-                    <button onClick={() => exportExcel("", "", filterUser)} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
+                    <button onClick={() => exportExcel("", "", filterUser, { year: filterYear, week: filterWeek, date: filterDate, reason: filterReason })} style={{ padding:"7px 12px", borderRadius:9, border:"1px solid #334155", background:"var(--surface)", color:"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>📊 Excel</button>
                   </div>
                 </div>
 
