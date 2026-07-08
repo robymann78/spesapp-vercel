@@ -870,6 +870,9 @@
       const [viewingExpense, setViewingExpense] = useState(null);
 
       const myExpenses = expenses.filter(e => e.userName === user.name || e.userId == user.id);
+      const myActive   = myExpenses.filter(e => e.status !== "approved");
+      const myArchived = myExpenses.filter(e => e.status === "approved");
+      const [showArchive, setShowArchive] = useState(false);
       // Usa l'ordine dell'array (expenses è già ordinato per data desc dal DB)
       // reverse() per avere la più recente in testa già c'è, usiamo il primo trovato
       const lastPlace       = myExpenses.find(e => e.place?.trim())?.place?.trim() || "";
@@ -947,13 +950,13 @@
             </button>
 
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {myExpenses.length===0 && (
+              {myActive.length===0 && myArchived.length===0 && (
                 <div style={{ textAlign:"center", padding:40, color:"var(--text2)" }}>
                   <div style={{ fontSize:36, marginBottom:10 }}>📭</div>
                   <div>Nessuna spesa inserita</div>
                 </div>
               )}
-              {myExpenses.map(exp => {
+              {myActive.map(exp => {
                 const cat = getCatInfo(exp.category);
                 const canEdit = true;
                 const canView = false;
@@ -998,6 +1001,50 @@
               })}
             </div>
           </div>
+
+          {/* ── Archivio spese approvate ── */}
+          {myArchived.length > 0 && (
+            <div style={{ maxWidth:600, margin:"0 auto", padding:"0 14px 20px" }}>
+              <button onClick={() => setShowArchive(p => !p)}
+                style={{ width:"100%", padding:"12px 16px", borderRadius:16, border:"1.5px solid rgba(6,214,160,0.4)", background:"rgba(6,214,160,0.06)", color:"var(--text2)", fontWeight:800, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <span>🗄️ Archivio approvate ({myArchived.length})</span>
+                <span style={{ fontSize:12, transform: showArchive ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▼</span>
+              </button>
+              {showArchive && (
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:10 }}>
+                  {myArchived.map(exp => {
+                    const cat = getCatInfo(exp.category);
+                    return (
+                      <div key={exp.id} style={{ background:"var(--surface)", borderRadius:16, border:"1.5px solid rgba(6,214,160,0.25)", overflow:"hidden", opacity:0.85 }}>
+                        <div style={{ padding:"13px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                          {exp.receiptFull && !isPdfUrl(exp.receiptFull) ? (
+                            <img src={exp.receiptFull} alt="" onClick={() => setViewReceipt(exp.receiptFull)}
+                              style={{ width:44, height:44, borderRadius:12, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
+                          ) : (
+                            <div style={{ width:44, height:44, borderRadius:12, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{cat.icon}</div>
+                          )}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ color:"var(--text)", fontWeight:700, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
+                            <div style={{ color:"var(--text3)", fontSize:12, marginTop:2 }}>{cat.label} · {exp.date} <span style={{ background:"rgba(99,102,241,0.12)", color:"#a5b4fc", fontSize:10, fontWeight:700, padding:"1px 5px", borderRadius:4 }}>Sett.{getWeekNumber(exp.date)}</span></div>
+                            {exp.note && <div style={{ color:"var(--green)", fontSize:11, marginTop:2 }}>💬 {exp.note}</div>}
+                          </div>
+                          <div style={{ textAlign:"right", flexShrink:0 }}>
+                            <div style={{ color:"var(--text)", fontWeight:800, fontSize:14 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                            <div style={{ color:"var(--green)", fontSize:10, fontWeight:800, marginTop:2 }}>✓ Approvata</div>
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", borderTop:"1px solid var(--border)", background:"var(--surface2)" }}>
+                          <button onClick={() => setEditingExpense(exp)} style={{ flex:1, padding:"9px", background:"none", border:"none", color:"var(--blue)", fontWeight:800, fontSize:12, cursor:"pointer" }}>✏️ Modifica</button>
+                          <div style={{ width:1, background:"var(--border)" }} />
+                          <button onClick={() => setDeletingExpense(exp)} style={{ flex:1, padding:"9px", background:"none", border:"none", color:"var(--red)", fontWeight:800, fontSize:12, cursor:"pointer" }}>🗑️ Elimina</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {showModal && <NewExpenseModal key={`new-${myExpenses.length}`} onClose={() => setShowModal(false)} onSave={onAddExpense} currentUserId={user.id} currentUserName={user.name} defaultPlace={lastPlace} defaultSharedWith={lastSharedWith} defaultVisitReason={lastVisitReason} />}
           {editingExpense && <NewExpenseModal onClose={() => setEditingExpense(null)} onSave={exp => { onEditExpense({...exp, status: (editingExpense.status==="approved" || editingExpense.status==="rejected") ? "pending" : exp.status, note: ""}); setEditingExpense(null); }} currentUserId={user.id} currentUserName={user.name} initialData={editingExpense} />}
@@ -1186,12 +1233,15 @@
       )].sort((a,b)=>Number(a)-Number(b));
 
       const filtered = expenses
+        .filter(e => e.status !== "approved") // approvate vanno in Archivio
         .filter(e => filterStatus === "all" || e.status === filterStatus)
         .filter(e => filterUser === "all" || e.userName === filterUser || String(e.userId) === filterUser)
         .filter(e => filterYear === "all" || e.date?.startsWith(filterYear))
         .filter(e => filterDate === "" || e.date === filterDate)
         .filter(e => filterWeek === "all" || String(getWeekNumber(e.date)) === filterWeek)
         .filter(e => filterReason === "all" || e.visitReason === filterReason);
+
+      const archived = expenses.filter(e => e.status === "approved");
 
       const handleAction = (id, status) => {
         onUpdateStatus(id, status, noteInput);
@@ -1207,18 +1257,18 @@
       const [showExportPanel, setShowExportPanel] = useState(false);
       const [exportUser, setExportUser] = useState("all");
 
-      const exportExcel = (dateFrom, dateTo, userFilter, activeFilters) => {
+      const exportExcel = (dateFrom, dateTo, userFilter, activeFilters, customExpenses) => {
         const XLSX = window.XLSX;
         if (!XLSX) { alert("Libreria Excel non caricata, riprova."); return; }
 
-        // Se chiamato dalla tab Spese (activeFilters presente), non usare le date del pannello
         const isFromExpensesTab = activeFilters !== undefined;
         const from = isFromExpensesTab ? (dateFrom || "") : (dateFrom || exportDateFrom);
         const to   = isFromExpensesTab ? (dateTo   || "") : (dateTo   || exportDateTo);
         const uFilter = userFilter !== undefined ? userFilter : exportUser;
         const af = activeFilters || {};
 
-        const filtered = expenses
+        const baseExp = customExpenses || expenses;
+        const filtered = baseExp
           .filter(e => (!from || e.date >= from) && (!to || e.date <= to))
           .filter(e => uFilter === "all" || e.userName === uFilter)
           .filter(e => !af.year   || af.year === "all"   || e.date?.startsWith(af.year))
@@ -1307,6 +1357,7 @@
       const TABS = [
         { id:"dashboard", label:"Dashboard", icon:"📊" },
         { id:"expenses",  label:`Spese${pending.length ? ` (${pending.length})` : ""}`, icon:"📋" },
+        { id:"archive",   label:"Archivio", icon:"🗄️" },
         { id:"users",     label:"Utenti", icon:"👥" },
       ];
 
@@ -1522,7 +1573,7 @@
               <>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, flexWrap:"wrap", gap:8 }}>
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
-                    {["all","pending","approved","rejected"].map(s => (
+                    {["all","pending","rejected"].map(s => (
                       <button key={s} onClick={() => setFilterStatus(s)}
                         style={{ padding:"7px 14px", borderRadius:20, border:"2px solid", borderColor: filterStatus===s ? "var(--blue)" : "var(--border)", background: filterStatus===s ? "var(--blue)" : "var(--surface)", color: filterStatus===s ? "#fff" : "var(--text2)", fontSize:12, fontWeight:800, cursor:"pointer", boxShadow: filterStatus===s ? "0 4px 12px rgba(67,97,238,0.3)" : "none" }}>
                         {s==="all" ? "Tutte" : STATUS_CONFIG[s]?.label}
@@ -1635,6 +1686,83 @@
                       </div>
                     );
                   })}
+                </div>
+              </>
+            )}
+
+            {activeTab==="archive" && (
+              <>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                  <div>
+                    <h2 style={{ color:"var(--text)", fontSize:17, fontWeight:900, margin:0 }}>🗄️ Archivio Spese Approvate</h2>
+                    <div style={{ color:"var(--text3)", fontSize:12, marginTop:3 }}>{archived.length} spese archiviate</div>
+                  </div>
+                  <button onClick={() => exportExcel("","","all",{}, archived)} 
+                    style={{ padding:"8px 14px", borderRadius:20, border:"none", background:"var(--grad-green)", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer", boxShadow:"0 4px 12px rgba(6,214,160,0.3)" }}>
+                    📊 Excel
+                  </button>
+                </div>
+
+                {/* Filtri archivio */}
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+                  <select onChange={e => setFilterUser(e.target.value)} defaultValue="all"
+                    style={{ padding:"7px 10px", borderRadius:20, border:"1.5px solid var(--border)", background:"var(--surface)", color:"var(--text2)", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    <option value="all">👥 Tutti</option>
+                    {users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                  </select>
+                  <select onChange={e => setFilterYear(e.target.value)} defaultValue="all"
+                    style={{ padding:"7px 10px", borderRadius:20, border:"1.5px solid var(--border)", background:"var(--surface)", color:"var(--text2)", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    <option value="all">📅 Anno</option>
+                    {[...new Set(archived.map(e => e.date?.slice(0,4)).filter(Boolean))].sort().reverse().map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <select onChange={e => setFilterWeek(e.target.value)} defaultValue="all"
+                    style={{ padding:"7px 10px", borderRadius:20, border:"1.5px solid var(--border)", background:"var(--surface)", color:"var(--text2)", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    <option value="all">📆 Settimana</option>
+                    {[...new Set(archived.map(e => String(getWeekNumber(e.date))))].sort((a,b)=>Number(a)-Number(b)).map(w => <option key={w} value={w}>Sett. {w}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {archived
+                    .filter(e => filterUser === "all" || e.userName === filterUser)
+                    .filter(e => filterYear === "all" || e.date?.startsWith(filterYear))
+                    .filter(e => filterWeek === "all" || String(getWeekNumber(e.date)) === filterWeek)
+                    .map(exp => {
+                      const cat = getCatInfo(exp.category);
+                      return (
+                        <div key={exp.id} style={{ background:"var(--surface)", borderRadius:16, padding:"13px 14px", border:"1.5px solid rgba(6,214,160,0.3)", display:"flex", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(6,214,160,0.06)" }}>
+                          {exp.receiptFull ? (
+                            isPdfUrl(exp.receiptFull) ? (
+                              <div style={{ width:40, height:40, borderRadius:10, border:"2px solid var(--green)", background:"#f8f9ff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>📄</div>
+                            ) : (
+                              <img src={exp.receiptFull} alt="" onClick={() => setViewReceipt(exp.receiptFull)}
+                                style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:"2px solid var(--green)", flexShrink:0, cursor:"pointer" }} />
+                            )
+                          ) : (
+                            <div style={{ width:40, height:40, borderRadius:10, background:`linear-gradient(135deg,${cat.color}30,${cat.color}10)`, border:`2px solid ${cat.color}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{cat.icon}</div>
+                          )}
+                          <Avatar name={exp.userName} size={30} />
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ color:"var(--text)", fontWeight:700, fontSize:13, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{exp.description}</div>
+                            <div style={{ color:"var(--text3)", fontSize:11, marginTop:1 }}>
+                              {exp.userName} · {exp.date} <span style={{ background:"rgba(99,102,241,0.12)", color:"#a5b4fc", fontSize:10, fontWeight:700, padding:"1px 5px", borderRadius:4 }}>Sett.{getWeekNumber(exp.date)}</span>
+                              {exp.place ? ` · 📍 ${exp.place}` : ""}
+                            </div>
+                          </div>
+                          <div style={{ textAlign:"right", flexShrink:0 }}>
+                            <div style={{ color:"var(--text)", fontWeight:700, fontSize:13 }}>{formatAmount(exp.amount, exp.currency||"EUR")}</div>
+                            <div style={{ color:"var(--green)", fontSize:10, fontWeight:800, marginTop:2 }}>✓ Approvata</div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
+                  {archived.filter(e => filterUser==="all"||e.userName===filterUser).length === 0 && (
+                    <div style={{ textAlign:"center", padding:40, color:"var(--text3)" }}>
+                      <div style={{ fontSize:40, marginBottom:10 }}>🗄️</div>
+                      <div>Nessuna spesa approvata</div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
