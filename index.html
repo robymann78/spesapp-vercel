@@ -1205,6 +1205,7 @@
       const [exportDateFrom, setExportDateFrom] = useState(`${thisYear}-${thisMonth}-01`);
       const [exportDateTo, setExportDateTo] = useState(new Date().toISOString().split("T")[0]);
       const [showExportPanel, setShowExportPanel] = useState(false);
+      const [exportUser, setExportUser] = useState("all");
 
       const exportExcel = (dateFrom, dateTo) => {
         const XLSX = window.XLSX;
@@ -1212,7 +1213,9 @@
 
         const from = dateFrom || exportDateFrom;
         const to   = dateTo   || exportDateTo;
-        const filtered = expenses.filter(e => (!from || e.date >= from) && (!to || e.date <= to));
+        const filtered = expenses
+          .filter(e => (!from || e.date >= from) && (!to || e.date <= to))
+          .filter(e => exportUser === "all" || e.userName === exportUser);
 
         const label = from === to ? from : `${from}_${to}`;
 
@@ -1424,6 +1427,7 @@
                       <div style={{ textAlign:"left" }}>
                         <div style={{ color:"var(--text)", fontWeight:800, fontSize:14 }}>Export Excel</div>
                         <div style={{ color:"var(--text3)", fontSize:11, marginTop:1 }}>
+                          {exportUser !== "all" ? exportUser + " · " : ""}
                           {exportDateFrom || exportDateTo
                             ? `${exportDateFrom||"inizio"} → ${exportDateTo||"oggi"}`
                             : "Tutte le spese"}
@@ -1451,6 +1455,18 @@
                         ))}
                       </div>
 
+                      {/* Filtro utente */}
+                      <div style={{ marginBottom:14 }}>
+                        <label style={{ color:"var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:6, letterSpacing:1 }}>👤 UTENTE</label>
+                        <select value={exportUser} onChange={e => setExportUser(e.target.value)}
+                          style={{ width:"100%", padding:"10px 12px", borderRadius:12, border:`1.5px solid ${exportUser!=="all" ? "var(--blue)" : "var(--border)"}`, background: exportUser!=="all" ? "rgba(67,97,238,0.08)" : "var(--surface2)", color:"var(--text)", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                          <option value="all">👥 Tutti gli utenti</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.name}>{u.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       {/* Selezione date */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
                         <div>
@@ -1469,7 +1485,8 @@
                       {(() => {
                         const count = expenses.filter(e =>
                           (!exportDateFrom || e.date >= exportDateFrom) &&
-                          (!exportDateTo || e.date <= exportDateTo)
+                          (!exportDateTo || e.date <= exportDateTo) &&
+                          (exportUser === "all" || e.userName === exportUser)
                         ).length;
                         return (
                           <div style={{ background:"var(--bg)", borderRadius:10, padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
