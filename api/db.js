@@ -98,7 +98,37 @@ export default async function handler(req, res) {
 
       case "delete": {
         if (!id) return res.status(400).json({ error: "Missing id" });
+
+        // Prima recupera la spesa per sapere se ha un file nello storage
+        let receiptUrl = null;
+        try {
+          const rows = await supabase("GET", `expenses?id=eq.${id}&select=receipt_url,receipt`);
+          receiptUrl = rows?.[0]?.receipt_url || null;
+        } catch(e) { /* ignora */ }
+
+        // Elimina la riga dal DB
         await supabase("DELETE", `expenses?id=eq.${id}`);
+
+        // Elimina il file dallo Storage (tenta per estensione e per URL)
+        const deleteFromStorage = async (path) => {
+          try {
+            await fetch(`${SUPABASE_URL}/storage/v1/object/${path}`, {
+              method: "DELETE",
+              headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+            });
+          } catch(e) { /* ignora */ }
+        };
+
+        if (receiptUrl) {
+          // Estrai il path dall'URL completo (es. receipts/123.jpg)
+          const match = receiptUrl.match(/\/storage\/v1\/object\/public\/(.+)$/);
+          if (match) await deleteFromStorage(match[1]);
+        } else {
+          // Tenta comunque per id (jpg e pdf)
+          await deleteFromStorage(`receipts/${id}.jpg`);
+          await deleteFromStorage(`receipts/${id}.pdf`);
+        }
+
         return res.status(200).json({ ok: true });
       }
 
