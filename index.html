@@ -436,20 +436,27 @@
       const galleryRef = useRef();
 
       const compressImage = (dataUrl, maxPx=800, quality=0.6) => new Promise(resolve => {
+        if (!dataUrl || !dataUrl.startsWith("data:")) { resolve(dataUrl); return; }
         const img = new Image();
         img.onload = () => {
-          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-          const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-          const canvas = document.createElement("canvas");
-          canvas.width = w; canvas.height = h;
-          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          try {
+            const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+            const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+            const canvas = document.createElement("canvas");
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          } catch(e) { resolve(dataUrl); } // fallback all'originale
         };
+        img.onerror = () => resolve(dataUrl); // fallback in caso di errore
         img.src = dataUrl;
       });
 
-      // Compressione per storage: più aggressiva per risparmiare spazio
-      const compressForStorage = (dataUrl) => compressImage(dataUrl, 1200, 0.65);
+      // Compressione per storage — con fallback sicuro
+      const compressForStorage = async (dataUrl) => {
+        try { return await compressImage(dataUrl, 1200, 0.65); }
+        catch(e) { return dataUrl; }
+      };
 
       const runOCR = async (base64Image) => {
         setOcring(true); setOcrError("");
@@ -552,6 +559,19 @@
         if (!form.sharedWith.trim()) { setFormError("Il campo Aziende/Fiere/Collaboratori è obbligatorio."); return; }
         if (!form.visitReason) { setFormError("Seleziona il motivo della visita."); return; }
         if (!form.place.trim()) { setFormError("Il campo Zona è obbligatorio."); return; }
+
+        // Verifica immagine: se form.receipt=true ma non c'è immagine valida, blocca
+        const hasImage = receiptPreview && (
+          receiptPreview.startsWith("data:image/") ||
+          receiptPreview.startsWith("PDF:") ||
+          receiptPreview.startsWith("http") ||
+          pdfFile?.base64
+        );
+        if (form.receipt && !hasImage) {
+          setFormError("⚠️ Scontrino non caricato correttamente. Ricarica l'immagine prima di salvare.");
+          return;
+        }
+
         setSaving(true);
         setTimeout(() => {
           if (isEdit) {
@@ -563,7 +583,13 @@
         }, 300);
       };
 
-      const valid = form.amount && form.description && form.sharedWith.trim() && form.visitReason && form.place.trim();
+      const hasValidImage = !form.receipt || (receiptPreview && (
+        receiptPreview.startsWith("data:image/") ||
+        receiptPreview.startsWith("PDF:") ||
+        receiptPreview.startsWith("http") ||
+        pdfFile?.base64
+      ));
+      const valid = form.amount && form.description && form.sharedWith.trim() && form.visitReason && form.place.trim() && hasValidImage;
 
       return (
         <>
@@ -676,7 +702,9 @@
               </div>
 
               <div>
-                <label style={{ color:"var(--text2)", fontSize:10, fontWeight:700, display:"block", marginBottom:8, letterSpacing:0.8 }}>SCONTRINO / RICEVUTA</label>
+                <label style={{ color: form.receipt && !hasValidImage ? "var(--red)" : "var(--text2)", fontSize:10, fontWeight:800, display:"block", marginBottom:8, letterSpacing:0.8 }}>
+                  {form.receipt && hasValidImage ? "✅ SCONTRINO ALLEGATO" : form.receipt && !hasValidImage ? "⚠️ SCONTRINO NON VALIDO — RICARICA" : "SCONTRINO / RICEVUTA"}
+                </label>
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handleFile} />
                 <input ref={galleryRef} type="file" accept="image/*,application/pdf" style={{ display:"none" }} onChange={handleFile} />
                 {!receiptPreview ? (
@@ -1990,10 +2018,13 @@
           if (uploadBase64) {
             try {
               let finalBase64 = uploadBase64;
-              // Comprimi ulteriormente le immagini prima dell'upload
-              if (!exp.pdfBase64 && uploadMime.startsWith("image/")) {
-                const compressed = await compressForStorage(`data:${uploadMime};base64,${uploadBase64}`);
-                finalBase64 = compressed.split(",")[1];
+              // Comprimi immagini prima dell'upload (non PDF, non URL)
+              if (!exp.pdfBase64 && uploadBase64.length > 100) {
+                const dataUrl = `data:image/jpeg;base64,${uploadBase64}`;
+                const compressed = await compressForStorage(dataUrl);
+                if (compressed && compressed.includes(",")) {
+                  finalBase64 = compressed.split(",")[1];
+                }
               }
               receiptUrl = await uploadReceiptToStorage(realId, finalBase64, exp.pdfBase64 ? uploadMime : "image/jpeg");
               await updateExpenseInCloud(realId, { receipt: true, receipt_url: receiptUrl });
