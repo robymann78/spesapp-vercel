@@ -435,7 +435,7 @@
       const cameraRef = useRef();
       const galleryRef = useRef();
 
-      const compressImage = (dataUrl, maxPx=1200, quality=0.75) => new Promise(resolve => {
+      const compressImage = (dataUrl, maxPx=800, quality=0.6) => new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
           const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
@@ -447,6 +447,9 @@
         };
         img.src = dataUrl;
       });
+
+      // Compressione per storage: più aggressiva per risparmiare spazio
+      const compressForStorage = (dataUrl) => compressImage(dataUrl, 1200, 0.65);
 
       const runOCR = async (base64Image) => {
         setOcring(true); setOcrError("");
@@ -1986,7 +1989,13 @@
 
           if (uploadBase64) {
             try {
-              receiptUrl = await uploadReceiptToStorage(realId, uploadBase64, uploadMime);
+              let finalBase64 = uploadBase64;
+              // Comprimi ulteriormente le immagini prima dell'upload
+              if (!exp.pdfBase64 && uploadMime.startsWith("image/")) {
+                const compressed = await compressForStorage(`data:${uploadMime};base64,${uploadBase64}`);
+                finalBase64 = compressed.split(",")[1];
+              }
+              receiptUrl = await uploadReceiptToStorage(realId, finalBase64, exp.pdfBase64 ? uploadMime : "image/jpeg");
               await updateExpenseInCloud(realId, { receipt: true, receipt_url: receiptUrl });
             } catch(e) { console.warn("Upload failed", e); }
           }
@@ -2004,7 +2013,12 @@
           try {
             const parts = exp.receiptPreview.split(",");
             const mime = parts[0].split(":")[1]?.split(";")[0] || "image/jpeg";
-            const url = await uploadReceiptToStorage(exp.id, parts[1], mime);
+            // Comprimi prima dell'upload
+            const compressed = mime.startsWith("image/")
+              ? await compressForStorage(exp.receiptPreview)
+              : exp.receiptPreview;
+            const finalParts = compressed.split(",");
+            const url = await uploadReceiptToStorage(exp.id, finalParts[1], "image/jpeg");
             expForDb.receiptFull = url;
           } catch(e) { console.warn("Upload failed", e); }
         }
