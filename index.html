@@ -535,16 +535,23 @@
           reader.readAsDataURL(file);
 
         } else {
-          // Immagine: leggi, mostra anteprima, esegui OCR
+          // Immagine: leggi, comprimi, mostra anteprima, esegui OCR
           const reader = new FileReader();
           reader.onload = async ev => {
             const original = ev.target.result;
-            setReceiptPreview(original);
+            // Comprimi subito per storage (una sola volta, qui)
+            let toStore = original;
+            try {
+              const c = await compressImage(original, 1200, 0.65);
+              if (c && c.startsWith("data:")) toStore = c;
+            } catch(e) { /* usa originale */ }
+            setReceiptPreview(toStore);
             setForm(f => ({ ...f, receipt: true }));
-            if (file.type.startsWith("image/") || original.startsWith("data:image/")) {
-              const compressed = await compressImage(original);
-              await runOCR(compressed);
-            }
+            // OCR su versione ancora più compressa per velocità
+            try {
+              const forOcr = await compressImage(original, 800, 0.6);
+              await runOCR(forOcr && forOcr.startsWith("data:") ? forOcr : toStore);
+            } catch(e) { await runOCR(toStore); }
           };
           reader.onerror = () => setOcrError("Errore nel caricamento dell'immagine.");
           reader.readAsDataURL(file);
@@ -2012,21 +2019,20 @@
 
           let receiptUrl = null;
           // Usa pdfFile se presente, altrimenti usa receiptPreview (immagine)
-          const uploadBase64 = exp.pdfBase64 || (exp.receiptPreview && !exp.receiptPreview.startsWith("PDF:") ? exp.receiptPreview.split(",")[1] : null);
+          const uploadBase64 = exp.pdfBase64 || (
+            exp.receiptPreview &&
+            !exp.receiptPreview.startsWith("PDF:") &&
+            !exp.receiptPreview.startsWith("http") &&
+            exp.receiptPreview.includes(",")
+              ? exp.receiptPreview.split(",")[1]
+              : null
+          );
           const uploadMime = exp.pdfMime || "image/jpeg";
 
           if (uploadBase64) {
             try {
-              let finalBase64 = uploadBase64;
-              // Comprimi immagini prima dell'upload (non PDF, non URL)
-              if (!exp.pdfBase64 && uploadBase64.length > 100) {
-                const dataUrl = `data:image/jpeg;base64,${uploadBase64}`;
-                const compressed = await compressForStorage(dataUrl);
-                if (compressed && compressed.includes(",")) {
-                  finalBase64 = compressed.split(",")[1];
-                }
-              }
-              receiptUrl = await uploadReceiptToStorage(realId, finalBase64, exp.pdfBase64 ? uploadMime : "image/jpeg");
+              console.log("Upload scontrino: base64 length =", uploadBase64.length, "mime =", uploadMime);
+              receiptUrl = await uploadReceiptToStorage(realId, uploadBase64, uploadMime);
               await updateExpenseInCloud(realId, { receipt: true, receipt_url: receiptUrl });
             } catch(e) { console.warn("Upload failed", e); }
           }
@@ -2040,16 +2046,10 @@
 
       const handleEditExpense = useCallback(async exp => {
         const expForDb = { ...exp };
-        if (exp.receiptPreview && exp.receiptPreview.startsWith("data:")) {
+        if (exp.receiptPreview && exp.receiptPreview.startsWith("data:") && exp.receiptPreview.includes(",")) {
           try {
             const parts = exp.receiptPreview.split(",");
-            const mime = parts[0].split(":")[1]?.split(";")[0] || "image/jpeg";
-            // Comprimi prima dell'upload
-            const compressed = mime.startsWith("image/")
-              ? await compressForStorage(exp.receiptPreview)
-              : exp.receiptPreview;
-            const finalParts = compressed.split(",");
-            const url = await uploadReceiptToStorage(exp.id, finalParts[1], "image/jpeg");
+            const url = await uploadReceiptToStorage(exp.id, parts[1], "image/jpeg");
             expForDb.receiptFull = url;
           } catch(e) { console.warn("Upload failed", e); }
         }
